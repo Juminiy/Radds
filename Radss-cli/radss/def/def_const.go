@@ -1,6 +1,6 @@
 package def
 
-var (
+const (
 	RadssCLIShortComment = "😀 Please input your instruction as well as flags."
 	RadssCLILongComment  = `😀      Radss cli is a Command Line Interface that can transfer SQL/NoSQL instruction to the
 	data storage system which are hosted on local, cloud, or distributed environment,						

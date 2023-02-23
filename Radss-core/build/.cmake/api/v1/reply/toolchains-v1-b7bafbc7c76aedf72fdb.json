@@ -1,0 +1,137 @@
+{
+	"kind" : "toolchains",
+	"toolchains" : 
+	[
+		{
+			"compiler" : 
+			{
+				"id" : "GNU",
+				"implicit" : 
+				{
+					"includeDirectories" : 
+					[
+						"C:/Users/22851/scoop/apps/gcc/current/include",
+						"C:/Users/22851/scoop/apps/gcc/current/lib/gcc/x86_64-w64-mingw32/11.2.0/include",
+						"C:/Users/22851/scoop/apps/gcc/current/lib/gcc/x86_64-w64-mingw32/11.2.0/include-fixed",
+						"C:/Users/22851/scoop/apps/gcc/current/x86_64-w64-mingw32/include"
+					],
+					"linkDirectories" : 
+					[
+						"C:/Users/22851/scoop/apps/gcc/current/lib/gcc/x86_64-w64-mingw32/11.2.0",
+						"C:/Users/22851/scoop/apps/gcc/current/lib/gcc",
+						"C:/Users/22851/scoop/apps/gcc/current/x86_64-w64-mingw32/lib",
+						"C:/Users/22851/scoop/apps/gcc/current/lib"
+					],
+					"linkFrameworkDirectories" : [],
+					"linkLibraries" : 
+					[
+						"mingw32",
+						"gcc",
+						"moldname",
+						"mingwex",
+						"kernel32",
+						"pthread",
+						"advapi32",
+						"shell32",
+						"user32",
+						"kernel32",
+						"mingw32",
+						"gcc",
+						"moldname",
+						"mingwex",
+						"kernel32"
+					]
+				},
+				"path" : "C:/Users/22851/scoop/apps/gcc/current/bin/gcc.exe",
+				"version" : "11.2.0"
+			},
+			"language" : "C",
+			"sourceFileExtensions" : 
+			[
+				"c",
+				"m"
+			]
+		},
+		{
+			"compiler" : 
+			{
+				"id" : "GNU",
+				"implicit" : 
+				{
+					"includeDirectories" : 
+					[
+						"C:/Users/22851/scoop/apps/gcc/current/include",
+						"C:/Users/22851/scoop/apps/gcc/current/include/c++/11.2.0",
+						"C:/Users/22851/scoop/apps/gcc/current/include/c++/11.2.0/x86_64-w64-mingw32",
+						"C:/Users/22851/scoop/apps/gcc/current/include/c++/11.2.0/backward",
+						"C:/Users/22851/scoop/apps/gcc/current/lib/gcc/x86_64-w64-mingw32/11.2.0/include",
+						"C:/Users/22851/scoop/apps/gcc/current/lib/gcc/x86_64-w64-mingw32/11.2.0/include-fixed",
+						"C:/Users/22851/scoop/apps/gcc/current/x86_64-w64-mingw32/include"
+					],
+					"linkDirectories" : 
+					[
+						"C:/Users/22851/scoop/apps/gcc/current/lib/gcc/x86_64-w64-mingw32/11.2.0",
+						"C:/Users/22851/scoop/apps/gcc/current/lib/gcc",
+						"C:/Users/22851/scoop/apps/gcc/current/x86_64-w64-mingw32/lib",
+						"C:/Users/22851/scoop/apps/gcc/current/lib"
+					],
+					"linkFrameworkDirectories" : [],
+					"linkLibraries" : 
+					[
+						"stdc++",
+						"mingw32",
+						"gcc",
+						"moldname",
+						"mingwex",
+						"kernel32",
+						"pthread",
+						"advapi32",
+						"shell32",
+						"user32",
+						"kernel32",
+						"mingw32",
+						"gcc",
+						"moldname",
+						"mingwex",
+						"kernel32"
+					]
+				},
+				"path" : "C:/Users/22851/scoop/apps/gcc/current/bin/g++.exe",
+				"version" : "11.2.0"
+			},
+			"language" : "CXX",
+			"sourceFileExtensions" : 
+			[
+				"C",
+				"M",
+				"c++",
+				"cc",
+				"cpp",
+				"cxx",
+				"mm",
+				"mpp",
+				"CPP",
+				"ixx",
+				"cppm"
+			]
+		},
+		{
+			"compiler" : 
+			{
+				"implicit" : {},
+				"path" : "C:/Users/22851/scoop/apps/gcc/current/bin/windres.exe"
+			},
+			"language" : "RC",
+			"sourceFileExtensions" : 
+			[
+				"rc",
+				"RC"
+			]
+		}
+	],
+	"version" : 
+	{
+		"major" : 1,
+		"minor" : 0
+	}
+}

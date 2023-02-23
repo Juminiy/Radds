@@ -22,7 +22,7 @@ var rootCmd = &cobra.Command{
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("😊 App Name is", viper.GetString("app.name"),
-			", Author Name is", viper.GetString("author.name"),
+			", Author Name is", def.RadssAuthorName,
 			", Author Favor is", def.RadssAuthorFavor)
 	},
 }
@@ -42,7 +42,8 @@ func init() {
 	viper.BindPFlag("favor", rootCmd.Flags().Lookup("favor"))
 
 	rootCmd.AddCommand(queryCmd)
-	queryCmd.PersistentFlags().BoolVarP(&def.RadssQueryMode, "mode", "m", true, "Query Mode")
-	viper.BindPFlag("mode", rootCmd.Flags().Lookup("mode"))
 	addQueryCmd()
+	queryCmd.PersistentFlags().StringVarP(&def.RadssQueryMode, "mode", "m", "nosql", "Query Mode: NoSQL OR SQL")
+	viper.BindPFlag("mode", rootCmd.Flags().Lookup("mode"))
+
 }

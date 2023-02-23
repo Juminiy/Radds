@@ -8,6 +8,6 @@ var (
 	RadssAppVersion  string
 	RadssStorageURL  string
 	RadssStoragePath string
-	// ture is NoSQL Mode, false is SQL Mode
-	RadssQueryMode bool
+	// nosql, sql
+	RadssQueryMode string
 )

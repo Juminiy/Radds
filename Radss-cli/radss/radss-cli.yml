@@ -12,8 +12,8 @@ author:
 storage:
   id: 0
   host: "localhost"
-  port: "8080"
-  path: "~/tmp/dbfile/leveldb"
+  port: "6666"
+  path: "/tmp/dbfile/leveldb"
   capacity: 45
 
 compute:

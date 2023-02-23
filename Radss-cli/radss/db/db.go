@@ -1,8 +1,10 @@
 package db
 
 import (
+	"fmt"
 	"log"
 	"os"
+	_ "radss/config"
 	"radss/utils"
 
 	"github.com/spf13/viper"
@@ -29,11 +31,11 @@ func init() {
 func GetStringKeyValue(key, predictValue string, cached bool) (val string, same bool) {
 	valByte, err := DBClient.Get([]byte(key), &opt.ReadOptions{cached, 0})
 	if err != nil {
-		log.Fatalln(err)
-		// os.Exit(1)
+		fmt.Println("Key : ", key, "has not been found")
 	}
 	if utils.BytesEqual(valByte, []byte(predictValue)) {
 		same = true
+		val = predictValue
 	} else {
 		same = false
 		val = string(valByte)

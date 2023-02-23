@@ -10,6 +10,7 @@ import (
 
 func init() {
 	viper.AddConfigPath(".")
+	viper.AddConfigPath("../")
 	viper.SetConfigName(def.RadssConfigFileName)
 	viper.SetConfigType(def.RadssConfigFileType)
 	HandleConfigErr()

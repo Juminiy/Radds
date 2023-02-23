@@ -25,3 +25,39 @@ go get github.com/syndtr/goleveldb/leveldb
 
 
 
+golang的加载顺序：pkg->dir_pkg->const->var->>init()
+
+# API
+
+RESTful API
+
+# Panel
+
+control panel
+
+# SDB
+
+database-interface
+
+# Core
+
+## RPC
+
+C++需要CMakelists.txt, gRPC需要Linux,校园网与虚拟化网卡冲突，关闭Hyper-V，重启windows
+
+````bash
+# admin ps
+# close
+bcdedit /set hypervisorlaunchtype off
+# recover 
+bcdedit /set hypervisorlaunchtype auto
+````
+
+
+
+## Raft
+
+## Data
+
+## Storage
+

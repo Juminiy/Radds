@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "bid_list.h": "c",
+        "intro_sort.h": "c",
+        "defs.h": "c",
+        "stdlib.h": "c",
+        "errno.h": "c",
+        "stdio.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "disabled"
+}

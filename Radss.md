@@ -61,3 +61,13 @@ bcdedit /set hypervisorlaunchtype auto
 
 ## Storage
 
+### Memory
+
+SDS：Simple Dynamic String 
+
+```bash
+LPUSH fruit banana apple pea
+```
+
+"fruit"是一个sds对象，"banana" "apple" "pea"分别是一个sds对象
+

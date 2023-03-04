@@ -1,6 +1,9 @@
 package def
 
+import "context"
+
 var (
+	// base setter
 	RadssAuthorName  string
 	RadssAuthorEmail string
 	RadssAuthorFavor string
@@ -10,4 +13,9 @@ var (
 	RadssStoragePath string
 	// nosql, sql
 	RadssQueryMode string
+	// gpt setter
+	RadssAskGPTAPIKEY        string
+	RadssAskGPTSystemContent string
+	RadssAskGPTUserContent   string
+	Ctx                      = context.Background()
 )

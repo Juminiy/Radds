@@ -43,3 +43,7 @@ panel:
   cpu:
   mem:
   region:
+
+openai:
+  gpt:
+    apikey: 

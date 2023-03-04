@@ -1,7 +1,10 @@
 #include "defs.h"
 
+// 两个长度分别为n的序列 es = sizeof(TYPE) 共有index = n/es个元素
+// 两个序列交换元素 
 // swap sequence two pointer 
-#define swapSeqPointer(TYPE, parmi, parmj, n){  \
+#define swapSeqPointer(TYPE, parmi, parmj, n)   \
+{                                               \
     _size_t_ index = (n) / sizeof(TYPE);        \
     TYPE *pi = (TYPE *)(void *)(parmi);         \
     TYPE *pj = (TYPE *)(void *)(parmj);         \
@@ -11,11 +14,15 @@
         *pj++ = t;                              \
     } while(--index > 0);                       \
 } 
+// seq1 = {1, 2, 3, 4, 5, 6}
+// seq2 = {9, 10, 11, 12, 13, 14}
+// swapSeqPointer
 
+// 三个元素选中间一个
 // select medium in three 
 static inline _uint_8_* 
 med3(_uint_8_ *a, _uint_8_ *b, _uint_8_ *c,
-    int (*cmp)(const void *, const void *))
+    _int_32_ (*cmp)(const void *, const void *))
 {
     return cmp(a, b) < 0 ?
             (cmp(b, c) < 0 ? b : (cmp(a, c) < 0 ? c : a))
@@ -32,6 +39,7 @@ swapSequence(_uint_8_ *a, _uint_8_ *b, _size_t_ n, int type)
         swapSeqPointer(_uint_8_, a, b, n)
 }
 
+// 交换两个void*指针的内容
 #define swapPairPointer(a, b)                                           \
     if(type == 0) {                                                     \
         _uint_32_ t = *(_uint_32_ *) (void *)(a);                       \
@@ -40,6 +48,7 @@ swapSequence(_uint_8_ *a, _uint_8_ *b, _size_t_ n, int type)
     } else                                                              \
         swapSequence(a, b, es, type) 
 
+// 
 #define SWAPINIT(a, es) type = (_uint_64_)a % sizeof(_uint_32_) ||      \
     es % sizeof(_uint_32_) ? 2 : es == sizeof(_uint_32_)? 0 : 1;
 
@@ -47,7 +56,7 @@ swapSequence(_uint_8_ *a, _uint_8_ *b, _size_t_ n, int type)
 
 static void 
 _intro_sort(void *a, _size_t_ n, _size_t_ es, 
-    _bool_ (*cmp) (const void *, const void *), void *lrange, void *rrange)
+    _int_32_ (*cmp) (const void *, const void *), void *lrange, void *rrange)
 {
     _uint_8_ *pa, *pb, *pc, *pd, *pl, *pm, *pn;
     _size_t_ d, r;
@@ -121,7 +130,7 @@ loop:   SWAPINIT(a, es);
 // union
 void 
 intro_sort(void *a, _size_t_ n, _size_t_ es,
-    _bool_ (*cmp) (const void *, const void *), _size_t_ lrange, _size_t_ rrange)
+    _int_32_ (*cmp) (const void *, const void *), _size_t_ lrange, _size_t_ rrange)
 {
     _intro_sort(a, n, es, cmp, ((_uint_8_*)a+(lrange+es)),
                                 (_uint_8_*)a+((rrange+1)*es)-1);

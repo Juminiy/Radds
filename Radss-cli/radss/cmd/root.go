@@ -42,6 +42,10 @@ func init() {
 	viper.BindPFlag("favor", rootCmd.Flags().Lookup("favor"))
 
 	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(GPTCmd)
+	GPTCmd.PersistentFlags().StringVarP(&def.RadssAskGPTSystemContent, "system", "s", "You are a Database Scientist", "Assgin the GPT's role")
+	GPTCmd.PersistentFlags().StringVarP(&def.RadssAskGPTUserContent, "user", "u", "What is the Raft Algorithm?", "Ask the content")
+	GPTCmd.PersistentFlags().StringVarP(&def.RadssAskGPTAPIKEY, "api_key", "k", os.Getenv("OPENAI_API_KEY"), "OPENAI API KEY")
 	addQueryCmd()
 	queryCmd.PersistentFlags().StringVarP(&def.RadssQueryMode, "mode", "m", "nosql", "Query Mode: NoSQL OR SQL")
 	viper.BindPFlag("mode", rootCmd.Flags().Lookup("mode"))

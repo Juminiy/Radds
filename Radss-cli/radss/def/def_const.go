@@ -11,5 +11,7 @@ const (
 	QueryCLIShortComment = "🙌 Input your query instruction"
 	QueryCLILongComment = `"🙌      Query mode can be selected as SQL Mode OR NoSQL Mode, the Query Engine will tansfer, compile, 
 	optimize, execute and return the query result to the View of Line.`
+
+	
 )
 

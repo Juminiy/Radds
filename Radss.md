@@ -58,6 +58,7 @@ bcdedit /set hypervisorlaunchtype auto
 ## Raft
 
 ## Data
+字符指针 Slice : char* data_, size_t size_;
 
 ## Storage
 

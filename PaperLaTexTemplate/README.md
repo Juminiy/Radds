@@ -11,7 +11,7 @@ LaTeX， 是一种基于TEX的排版系统，由美国电脑学家莱斯利·兰
 
 简单点说：LaTeX 基于 TeX，主要目的是为了方便排版。在学术界的论文，尤其是数学、计算机等学科论文都是由 LaTeX 编写, 因为用它写数学公式非常漂亮。
 
-#### 项目地址
+#### 项目原地址
 
 [GitHub](https://github.com/techflowing/PaperLaTexTemplate)
 
@@ -26,11 +26,9 @@ LaTeX， 是一种基于TEX的排版系统，由美国电脑学家莱斯利·兰
 
 #### LaTex环境
 
-> 基于 macOS 系统，其它系统请自行寻找编辑器，配置环境
+> MacbookPro-16 M1, MacOS Ventura13.3.1, VSCode, MacTeX2023
 
-编辑器：[Texpad](https://www.texpad.com/)
-
-Tex发行版：[MacTeX-2017](https://www.tug.org/mactex/mactex-download.html)
+Tex发行版：[MacTeX](https://www.tug.org/mactex/mactex-download.html)
 
 
 

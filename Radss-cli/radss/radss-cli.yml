@@ -1,0 +1,49 @@
+app:
+  name: "radss-cli"
+  version: 
+    id: "beta-v1"
+    tag: 0.1
+
+author: 
+  name: "Chisaot-X" 
+  email: "chisato-x@qq.com"
+  favor: "Code"
+
+storage:
+  id: 0
+  host: "localhost"
+  port: "6666"
+  path: "/tmp/dbfile/db"
+  capacity: 45
+
+compute:
+  id: 
+  host:
+  port: 
+  cpu:
+  mem:
+  region:
+
+cluster:
+  id: 
+  mode:
+  master:
+  slave:
+  candidate:
+
+network:
+  id:
+  mode: 
+  timer:
+
+panel:
+  id: 
+  host:
+  port: 
+  cpu:
+  mem:
+  region:
+
+openai:
+  gpt:
+    apikey: 

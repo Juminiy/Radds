@@ -2,12 +2,12 @@
 
 	本章对存储系统的各层进行详细设计与实现，针对各层内部的子系统，各层之间的接口进行详细定义。
 
-  \subsection{基础层详细设计与实现}
+	\subsection{基础层详细设计与实现}
 	
-   	\subsubsection{错误处理的实现}
+   		\subsubsection{错误处理的实现}
 
 		针对go语言本身的特性，错误处理成为整个系统程序开发的首要项目，我们以轻量化，插件化的形式进行错误处理。
-		
+	
 		\begin{lstlisting}[caption=Errors , label=code_radds_errors]
 
  
@@ -15,23 +15,23 @@
 
 	
 			
-   	\subsubsection{日志系统的实现}
+   		\subsubsection{日志系统的实现}
     
-	   为了防止写入内存的数据库因为进程异常、操作系统掉电等情况发生丢失，
-	   存储系统在写内存之前会将本次写操作的内容写入日志文件中。
+	   	为了防止写入内存的数据库因为进程异常、操作系统掉电等情况发生丢失，
+	   	存储系统在写内存之前会将本次写操作的内容写入日志文件中。
     
-    \begin{figure}[H]
-    	\centering
-    	\includegraphics[width=0.95\textwidth]{images/two_log}
-    	\caption{日志系统架构图}
-    	\label{two_log}
-    \end{figure}
-	存储系统中，有两个memory db，以及对应的两份日志文件。
-	其中一个memory db是可读写的，当这个db的数据量超过预定的上限时，
-	便会转换成一个不可写的memory db，与此同时，与之对应的日志文件也变成一份frozen log。
+    	\begin{figure}[H]
+    		\centering
+    		\includegraphics[width=0.95\textwidth]{images/two_log}
+    		\caption{日志系统架构图}
+    		\label{two_log}
+    	\end{figure}
+		存储系统中，有两个memory db，以及对应的两份日志文件。
+		其中一个memory db是可读写的，当这个db的数据量超过预定的上限时，
+		便会转换成一个不可写的memory db，与此同时，与之对应的日志文件也变成一份frozen log。
 
-	而新生成的immutable memory db则会由后台的minor compaction进程将其转换成一个sstable文件进行持久化，
-	持久化完成，与之对应的frozen log被删除。
+		而新生成的immutable memory db则会由后台的minor compaction进程将其转换成一个sstable文件进行持久化，
+		持久化完成，与之对应的frozen log被删除。
     
 	\begin{enumerate}
 		\item 日志结构
@@ -344,15 +344,15 @@
 		
 	\end{enumerate}
 	
-	\subsubsection{内存数据库的实现}
+		\subsubsection{跳表数据结构的实现}
 
-	内存数据库用来维护有序的key-value对，
+		内存数据库用来维护有序的key-value对，
 		其底层是利用跳表实现，绝大多数操作（读／写）的时间复杂度均为O(log n)，
 		有着与平衡树相媲美的操作效率，但是从实现的角度来说简单许多，
 		接下来将介绍一下内存数据库的实现细节。
 
 	\begin{enumerate}
-		\item 跳表对实现内存数据库的分析
+		\item 跳表的实现
 		
 		跳表（SkipList）是由William Pugh提出的。
 		他在论文《Skip lists: a probabilistic alternative to balanced trees》
@@ -442,27 +442,159 @@
 综合来说，就是利用稀疏的高层节点，快速定位到所需要查找节点的大致位置，
 再利用密集的底层节点，具体比较节点的内容。
 		
-		\item 基于跳表实现内存数据库memtable
+
+		\item 跳表的插入
+		
+		跳表的插入以查找为基础实现
+
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=0.95\textwidth]{images/skiplist_insert}
+			\caption{跳表的插入图}
+			\label{skiplist_insert}
+		\end{figure}
+
+		在查找的过程中，不断记录每一层的前任节点，如图中红色圆圈所表示的；
+		为新插入的节点随机产生层高（随机产生层高的算法较为简单，依赖最高层数和概率值p，可见下文中的代码实现）；
+		在合适的位置插入新节点（例如图中节点12与节点19之间），并依据查找时记录的前任节点信息，
+		在每一层中，以链表插入的方式，将该节点插入到每一层的链接中。
+
+
+		链表插入指：将当前节点的Next值置为前任节点的Next值，将前任节点的Next值替换为当前节点。
+
+		\begin{lstlisting}[caption=skiplistRandHeight , label=code_radds_storage_skiplist_randHeight]
+func (p *DB) randHeight() (h int) {
+	const branching = 4
+	h = 1
+	for h < tMaxHeight && p.rnd.Int()%branching == 0 {
+		h++
+	}
+	return
+}	
+		\end{lstlisting}
+
+		\item 跳表的删除
+
+		跳表的删除操作较为简单，依赖查找过程找到该节点在整个跳表中的位置后，以链表删除的方式，
+		在每一层中，删除该节点的信息。
+
+		链表删除指：将前任节点的Next值替换为当前节点的Next值，并将当前节点所占的资源释放。
+
+		\item 跳表的迭代
+		
+		（1）向后遍历
+
+		若迭代器刚被创建，则根据用户指定的查找范围[Start, Limit)找到一个符合条件的跳表节点；
+		
+		若迭代器处于中部，则取出上一次访问的跳表节点的后继节点，
+		作为本次访问的跳表节点（后继节点为最底层的后继节点）；
+		
+		利用跳表节点信息（keyvalue数据偏移量，key，value值长度等），获取keyvalue数据；
+		
+		（2）向前遍历
+
+		若迭代器刚被创建，则根据用户指定的查找范围[Start, Limit）在跳表中找到最后一个符合条件的跳表节点；
+		
+		若迭代器处于中部，则利用上一次访问的节点的key值，查找比该key值更小的跳表节点；
+		
+		利用跳表节点信息（keyvalue数据偏移量，key，value值长度等），获取keyvalue数据；
+
 	\end{enumerate}
-  	\subsection{共识层详细设计与实现}
+
+	\subsubsection{内存数据库的实现}
+
+		在介绍完跳表这种数据结构的组织原理以后，我们介绍存储系统如何利用跳表来构建一个高效的内存数据库。
+
+		\begin{enumerate}
+			\item 键值编码
+			
+			在介绍内存数据库之前，首先介绍一下内存数据库的键值编码规则。
+			由于内存数据库本质是一个kv集合，且所有的数据项都是依据key值排序的，因此键值的编码规则尤为关键。
+
+			内存数据库中，key称为internalKey，其由三部分组成：
+
+			用户定义的key：这个key值也就是原生的key值；
+			
+			序列号：leveldb中，每一次写操作都有一个sequence number，标志着写入操作的先后顺序。
+			由于在leveldb中，可能会有多条相同key的数据项同时存储在数据库中，
+			因此需要有一个序列号来标识这些数据项的新旧情况。序列号最大的数据项为最新值；
+			
+			类型：标志本条数据项的类型，为更新还是删除；
+
+			\begin{figure}[H]
+				\centering
+				\includegraphics[width=0.95\textwidth]{images/internalkey}
+				\caption{内存数据库内部键}
+				\label{internalkey}
+			\end{figure}
+
+			\item 键值比较
+			
+			内存数据库中所有的数据项都是按照键值比较规则进行排序的。
+			这个比较规则可以由用户自己定制，也可以使用系统默认的。在这里介绍一下系统默认的比较规则。
+
+			默认的比较规则：
+
+			首先按照字典序比较用户定义的key（ukey），若用户定义key值大，整个internalKey就大；
+			
+			若用户定义的key相同，则序列号大的internalKey值就小；
+			
+			通过这样的比较规则，则所有的数据项首先按照用户key进行升序排列；
+			当用户key一致时，按照序列号进行降序排列，这样可以保证首先读到序列号大的数据项。
 
 
-        
+			\item 数据组织
+			
+			\begin{lstlisting}{caption=storage_db, label=code_radds_storage_db}
+type DB struct {
+	cmp comparer.BasicComparer
+	rnd *rand.Rand
+	mu     sync.RWMutex
+	kvData []byte
+	// Node data:
+	// [0]         : KV offset
+	// [1]         : Key length
+	// [2]         : Value length
+	// [3]         : Height
+	// [3..height] : Next nodes
+	nodeData  []int
+	prevNode  [tMaxHeight]int
+	maxHeight int
+	n         int
+	kvSize    int
+}
+		\end{lstlisting}
+				
+			
+			其中kvData用来存储每一条数据项的key-value数据，nodeData用来存储每个跳表节点的链接信息。
 
-  \subsection{客户端层详细设计与实现}
-  	
-		\subsubsection{API 客户端服务平台的实现}
+			nodeData中，每个跳表节点占用一段连续的存储空间，每一个字节分别用来存储特定的跳表节点信息。
+
+			第一个字节用来存储本节点key-value数据在kvData中对应的偏移量；
+			
+			第二个字节用来存储本节点key值长度；
+			
+			第三个字节用来存储本节点value值长度；
+			
+			第四个字节用来存储本节点的层高；
+			
+			第五个字节开始，用来存储每一层对应的下一个节点的索引值；
+
+		\item 基础操作
 		
-		
-		\subsubsection{gRPC API客户端的实现}
-		
-		
-	 	\subsubsection{RESTful API客户端的实现}
-	 	
-	 	
-		\subsubsection{CLI 命令行客户端的实现}
-		
+		Put、Get、Delete、Iterator等操作均依赖于底层的跳表的基本操作实现，不再赘述。
+		\end{enumerate}
+
+		\subsubsection{持久化数据存储的实现}
 
 
-	\subsection{本章小结}
- \clearpage
+		\subsubsection{缓存系统的实现}
+
+
+		\subsubsection{布隆过滤器的实现}
+
+		\subsubsection{数据压缩系统的实现}
+
+		\subsubsection{版本控制的实现}
+
+	

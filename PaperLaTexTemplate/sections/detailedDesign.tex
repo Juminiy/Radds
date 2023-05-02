@@ -33,7 +33,7 @@
 		而新生成的immutable memory db则会由后台的minor compaction进程将其转换成一个sstable文件进行持久化，
 		持久化完成，与之对应的frozen log被删除。
     
-	\begin{enumerate}
+		\begin{enumerate}
 		\item 日志结构
 
 		\begin{figure}[H]
@@ -119,17 +119,17 @@
 		
 		
 	
-	\end{enumerate}
+		\end{enumerate}
 	
-   	\subsubsection{工具库的实现}
+   		\subsubsection{其他工具库的实现}
     
 
 
   	\subsection{存储层详细设计与实现}
 	
-	\subsubsection{写数据的实现}
+		\subsubsection{写数据的实现}
 		
-	\begin{enumerate}
+		\begin{enumerate}
 		\item 写入数据的整体流程
 			
 		先来分析一下存储系统整个写入的流程，底层数据结构的支持以及为何能够优化我们的写入性能。
@@ -158,7 +158,7 @@
 		（1）Put（2）Delete两种。这两种本质对应同一种操作，
 		Delete操作同样会被转换成一个value为空的Put操作。
 	
-		除此以外，我们还提供了一个批量处理的工具Batch，用户可以依据Batch来完成批量的数据库更新操作，
+		除此以外，我们还提供了一个批量处理的工具Batch，用户可以依据Batch来完成批量更新操作，
 		且这些操作是原子性的。
 
 		\item batch结构
@@ -263,10 +263,10 @@
 		后者，写日志已经完成，写入日志的数据未真正持久化，
 		存储系统启动恢复时通过redo日志实现数据写入，仍然保障了原子性。
 
-	\end{enumerate}
+		\end{enumerate}
 
 
-	\subsubsection{读数据的实现}
+		\subsubsection{读数据的实现}
 
 	存储系统提供给用户两种进行读取数据的接口：
 
@@ -280,7 +280,7 @@
 	
 	由于两种方式本质都是基于快照进行读取的，因此在介绍读操作之前，首先介绍快照。
 
-	\begin{enumerate}
+		\begin{enumerate}
 		\item snapshot（快照）
 		
 		快照代表着数据库某一个时刻的状态，在存储系统中，巧妙地用一个整型数来代表一个数据库状态。
@@ -342,7 +342,7 @@
 		在memory db或者sstable的查找过程中，需要根据指定的序列号拼接一个internalKey，
 		查找用户key一致，且seq号不大于指定seq的数据，
 		
-	\end{enumerate}
+		\end{enumerate}
 	
 		\subsubsection{跳表数据结构的实现}
 
@@ -351,7 +351,7 @@
 		有着与平衡树相媲美的操作效率，但是从实现的角度来说简单许多，
 		接下来将介绍一下内存数据库的实现细节。
 
-	\begin{enumerate}
+		\begin{enumerate}
 		\item 跳表的实现
 		
 		跳表（SkipList）是由William Pugh提出的。
@@ -501,7 +501,7 @@ func (p *DB) randHeight() (h int) {
 
 	\end{enumerate}
 
-	\subsubsection{内存数据库的实现}
+		\subsubsection{内存数据库的实现}
 
 		在介绍完跳表这种数据结构的组织原理以后，我们介绍存储系统如何利用跳表来构建一个高效的内存数据库。
 
@@ -515,8 +515,8 @@ func (p *DB) randHeight() (h int) {
 
 			用户定义的key：这个key值也就是原生的key值；
 			
-			序列号：leveldb中，每一次写操作都有一个sequence number，标志着写入操作的先后顺序。
-			由于在leveldb中，可能会有多条相同key的数据项同时存储在数据库中，
+			序列号：存储系统中，每一次写操作都有一个sequence number，标志着写入操作的先后顺序。
+			由于在存储系统中可能会有多条相同key的数据项同时存储在数据库中，
 			因此需要有一个序列号来标识这些数据项的新旧情况。序列号最大的数据项为最新值；
 			
 			类型：标志本条数据项的类型，为更新还是删除；
@@ -586,6 +586,188 @@ type DB struct {
 		\end{enumerate}
 
 		\subsubsection{持久化数据存储的实现}
+
+			\begin{enumerate}
+				\item sstable概述
+				
+				如我们之前提到的，系统是的LSM树(Log Structured-Merge Tree)实现，
+				即一次写入过程并不是直接将数据持久化到磁盘文件中，而是将写操作首先写入日志文件中，
+				其次将写操作应用在memtable上。
+
+				当其达到checkpoint点（memtable中的数据量超过了预设的阈值），
+				会将当前memtable冻结成一个不可更改的内存数据库
+				（immutable memory db），并且创建一个新的memtable供系统继续使用。
+
+				immutable memory db会在后台进行一次minor compaction，
+				即将内存数据库中的数据持久化到磁盘文件中。
+
+				LSM树设计Minor Compaction的目的是为了：
+
+				有效地降低内存的使用率；
+				
+				避免日志文件过大，系统恢复时间过长；
+				
+				当memory db的数据被持久化到文件中时，
+				leveldb将以一定规则进行文件组织，这种文件格式成为sstable。
+				在本文中将详细地介绍sstable的文件格式以及相关读写操作。
+
+				\item sstable文件格式
+				
+				物理结构
+
+				为了提高整体的读写效率，一个sstable文件按照固定大小进行块划分，默认每个块的大小为4KiB。
+				每个Block中，除了存储数据以外，还会存储两个额外的辅助字段：
+
+				（1）压缩类型
+
+				（2）CRC校验码
+
+				压缩类型说明了Block中存储的数据是否进行了数据压缩，
+				若是，采用了哪种算法进行压缩。leveldb中默认采用Snappy算法进行压缩。
+
+				CRC校验码是循环冗余校验校验码，校验范围包括数据以及压缩类型。
+				
+				\begin{figure}[H]
+					\centering
+					\includegraphics[width=0.95\textwidth]{images/sstable_physic.jpeg}
+					\caption{sstable物理结构}
+					\label{sstable_physic}
+				\end{figure}
+				
+				逻辑结构
+
+				在逻辑上，根据功能不同，leveldb在逻辑上又将sstable分为：
+
+data block: 用来存储key value数据对；
+
+filter block: 用来存储一些过滤器相关的数据（布隆过滤器），但是若用户不指定leveldb使用过滤器，leveldb在该block中不会存储任何内容；
+
+meta Index block: 用来存储filter block的索引信息（索引信息指在该sstable文件中的偏移量以及数据长度）；
+
+index block：index block中用来存储每个data block的索引信息；
+
+footer: 用来存储meta index block及index block的索引信息；
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.95\textwidth]{images/sstable_logic.jpeg}
+	\caption{sstable逻辑结构}
+	\label{sstable_logic}
+\end{figure}
+
+			每个区块都会有自己的压缩信息以及CRC校验码信息。
+
+				datablock结构
+
+				data block中存储的数据是leveldb中的keyvalue键值对。
+				其中一个data block中的数据部分（不包括压缩类型、CRC校验码）按逻辑又以下图进行划分：
+				
+				\begin{figure}[H]
+					\centering
+					\includegraphics[width=0.95\textwidth]{images/datablock.jpeg}
+					\caption{sstable data block}
+					\label{sstable_data_block}
+				\end{figure}
+				
+				第一部分用来存储keyvalue数据。由于sstable中所有的keyvalue对都是严格按序存储的，
+				为了节省存储空间，leveldb并不会为每一对keyvalue对都存储完整的key值，而是存储与上一个key非共享的部分，
+				避免了key重复内容的存储。
+
+				每间隔若干个keyvalue对，将为该条记录重新存储一个完整的key。
+				重复该过程（默认间隔值为16），
+				每个重新存储完整key的点称之为Restart point。
+
+				leveldb设计Restart point的目的是在读取sstable内容时，
+				加速查找的过程。
+
+				由于每个Restart point存储的都是完整的key值，
+				因此在sstable中进行数据查找时，
+				可以首先利用restart point点的数据进行键值比较，
+				以便于快速定位目标数据所在的区域；
+
+				当确定目标数据所在区域时，
+				再依次对区间内所有数据项逐项比较key值，进行细粒度地查找；
+				该思想有点类似于跳表中利用高层数据迅速定位，
+				底层数据详细查找的理念，降低查找的复杂度。
+
+				
+				每个数据项格式如下图所示：
+
+				\begin{figure}[H]
+					\centering
+					\includegraphics[width=0.95\textwidth]{images/entry_format.jpeg}
+					\caption{sstable entry format}
+					\label{sstable_entry_format}
+				\end{figure}
+
+				一个entry分为5部分内容：
+
+与前一条记录key共享部分的长度；
+
+与前一条记录key不共享部分的长度；
+
+value长度；
+
+与前一条记录key非共享的内容；
+
+value内容；
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.95\textwidth]{images/datablock_example_1.jpeg}
+	\caption{sstable data block 示例图1}
+	\label{sstable_datablock_example_1}
+\end{figure}
+
+
+三组entry按上图的格式进行存储。
+值得注意的是restart\_interval为2，
+因此每隔两个entry都会有一条数据作为restart point点的数据项，
+存储完整key值。因此entry3存储了完整的key。
+
+此外，第一个restart point为0（偏移量），第二个restart point为16，
+restart point共有两个，
+因此一个datablock数据段的末尾添加了下图所示的数据：
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.95\textwidth]{images/datablock_example_2.jpeg}
+	\caption{sstable data block 示例图2}
+	\label{sstable_datablock_example_2}
+\end{figure}
+
+尾部数据记录了每一个restart point的值，以及所有restart point的个数。
+
+filter block结构
+
+为了加快sstable中数据查询的效率，在直接查询datablock中的内容之前，
+leveldb首先根据filter block中的过滤数据判断指定的datablock中是否有需要查询的数据，
+若判断不存在，则无需对这个datablock进行数据查找。
+
+filter block存储的是data block数据的一些过滤信息。
+这些过滤数据一般指代布隆过滤器的数据，用于加快查询的速度，
+
+filter block存储的数据主要可以分为两部分：（1）过滤数据（2）索引数据。
+
+其中索引数据中，filter i offset表示第i个filter data在整个filter block中的起始偏移量，filter offset's offset表示filter block的索引数据在filter block中的偏移量。
+
+在读取filter block中的内容时，可以首先读出filter offset's offset的值，然后依次读取filter i offset，根据这些offset分别读出filter data。
+
+Base Lg默认值为11，表示每2KB的数据，创建一个新的过滤器来存放过滤数据。
+
+一个sstable只有一个filter block，其内存储了所有block的filter数据。
+具体来说，filter\_data\_k 包含了所有起始位置处于 [base*k, base*(k+1)]
+范围内的block的key的集合的filter数据，
+按数据大小而非block切分主要是为了尽量均匀，
+以应对存在一些block的key很多，另一些block的key很少的情况。
+
+
+				\item sstable读写操作
+				
+
+
+				\item sstable文件特点
+			\end{enumerate}
 
 
 		\subsubsection{缓存系统的实现}

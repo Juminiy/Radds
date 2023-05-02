@@ -24,7 +24,7 @@
 				
 				\item Golang1.20
 				
-				Go（又称Golang[4]）是Google开发的一种静态强类型、编译型、并发型，并具有垃圾回收功能的编程语言。
+				Go（又称Golang）是Google开发的一种静态强类型、编译型、并发型，并具有垃圾回收功能的编程语言。
 				罗伯特·格瑞史莫、罗勃·派克及肯·汤普逊于2007年9月开始设计Go，稍后伊恩·兰斯·泰勒（Ian Lance Taylor）、拉斯·考克斯（Russ Cox）加入项目。
 				Go是基于Inferno操作系统所开发的。
 				Go于2009年11月正式宣布推出，成为开放源代码项目，支持Linux、macOS、Windows等操作系统。
@@ -38,11 +38,11 @@
 				出于安全考虑，Windows 11的系统需求比Windows 10有所提高。
 				微软仅支持使用英特尔酷睿第8代或更新的处理器、AMD Zen+或更新的处理器及高通骁龙850或更新的处理器的设备。
 				Windows 11不再支持32位x86架构或使用BIOS固件的设备。
-				\item X86-64 Windows11 WSL2-GNU/Linux-Ubuntu20.04
+				% \item X86-64 Windows11 WSL2-GNU/Linux-Ubuntu20.04
 				
-				适用于Linux的Windows子系统（英语：Windows Subsystem for Linux，简称WSL）是一个为在Windows 10和Windows Server 2019以上能够原生运行Linux二进制可执行文件（ELF格式）的兼容层。
-				WSL提供了一个由微软开发的Linux兼容的内核接口（不包含Linux内核代码），然后可以在其上运行GNU用户空间，例如Ubuntu，openSUSE，SUSE Linux Enterprise Server，Debian和Kali Linux。
-				这样的用户空间可能包含Bash shell和命令语言，使用本机GNU/Linux命令行工具（sed，awk等），编程语言解释器（Ruby，Python等），甚至是图形应用程序（使用主机端的X窗口系统）。
+				% 适用于Linux的Windows子系统（英语：Windows Subsystem for Linux，简称WSL）是一个为在Windows 10和Windows Server 2019以上能够原生运行Linux二进制可执行文件（ELF格式）的兼容层。
+				% WSL提供了一个由微软开发的Linux兼容的内核接口（不包含Linux内核代码），然后可以在其上运行GNU用户空间，例如Ubuntu，openSUSE，SUSE Linux Enterprise Server，Debian和Kali Linux。
+				% 这样的用户空间可能包含Bash shell和命令语言，使用本机GNU/Linux命令行工具（sed，awk等），编程语言解释器（Ruby，Python等），甚至是图形应用程序（使用主机端的X窗口系统）。
 				\item X86-64 GNU/Linux-Ubuntu22.04
 				
 				前文已经提及
@@ -88,42 +88,46 @@
 	
 	\begin{enumerate}[fullwidth,itemindent=2em,listparindent=2em]
 	
-		\item golang跨平台文件系统通知库 fsnotify
+		\item Golang跨平台文件系统通知库 fsnotify
 		
 		项目地址：https://github.com/fsnotify/fsnotify
 
 		fsnotify是一个Go库，用于在Windows、Linux、macOS、BSD和illumos上提供跨平台文件系统通知。
 
-		\item golang文件压缩库 snappy
+		\item Golang文件压缩库 snappy
 		
 		项目地址：https://github.com/golang/snappy
 
-		Snappy是一个压缩/解压库。它不以最大压缩或与任何其他压缩库兼容为目标；相反，它以非常高的速度和合理的压缩为目标。例如，与zlib的最快模式相比，Snappy对大多数输入来说要快一个数量级，但由此产生的压缩文件要大20%到100%。（有关更多信息，请参阅下面的“性能”。）
+		Snappy是一个压缩/解压库。它不以最大压缩或与任何其他压缩库兼容为目标；相反，它以非常高的速度和合理的压缩为目标。例如，与zlib的最快模式相比，Snappy对大多数输入来说要快一个数量级，但由此产生的压缩文件要大20\%到100\%。
+		这个库的优点有：
 		快速：压缩速度为250 MB/秒及以上，没有汇编代码。
 		稳定：在过去几年里，Snappy在谷歌的生产环境中压缩和解压缩了PB的数据。Snappy bitstream格式是稳定的，不会在版本之间更改。
 		稳健：Snappy解压器旨在在遇到损坏或恶意输入时不会崩溃。
-		golang/snappy是google/snappy的官方golang实现。
+		golang/snappy是google/snappy（C++）的官方实现。
 
-		\item golang测试库 Ginkgo｜Gomega
+		\item Golang测试库 Ginkgo｜Gomega
 		
 		项目地址：https://github.com/onsi/ginkgo
 
-		Ginkgo 是 Go 的测试框架，旨在帮助您编写富有表现力的测试。 它与 Gomega 匹配器库搭配使用。 结合使用时，Ginkgo 和 Gomega 为编写测试提供了丰富且富有表现力的 DSL（领域特定语言）。
-		Ginkgo 有时被描述为“行为驱动开发”（BDD）框架。 实际上，Ginkgo 是一个通用测试框架，在各种测试环境中得到积极使用：单元测试、集成测试、验收测试、性能测试等。
+		Ginkgo 是 Go 的一个测试框架，旨在帮助开发者编写富有表现力的测试。 
+		它与 Gomega 匹配器库搭配使用。 
+		结合使用时，Ginkgo 和 Gomega 为编写测试提供了丰富且富有表现力的 DSL（领域特定语言）。
+		Ginkgo 有时被描述为“行为驱动开发”（BDD）框架。 
+		实际上，Ginkgo 是一个通用测试框架，在各种测试环境中得到积极使用：单元测试、集成测试、验收测试、性能测试等。
 		
-		\item golang性能度量库 go-metrics
+		\item Golang性能度量库 go-metrics
 		
 		项目地址：github.com/armon/go-metrics 
 		
-		go-metrics是一个Go应用性能度量指标的库，go-metrics提供的meter、histogram可以覆盖Go应用基本性能指标需求（吞吐性能、延迟数据分布等）。
-		go-metrics是模仿Coda Hale的JVM Metrics库开发的golang运行时性能度量程序。
+		go-metrics是一个Go应用性能度量指标的库，go-metrics提供的meter、histogram可以覆盖Go应用基本性能指标需求，如：吞吐性能、延迟数据分布等。
+		此外，go-metrics是模仿JVM Metrics开发的一个库，可以与golang的runtime无缝集成。
 		
 		
-		\item golang断言库 testify
+		\item Golang断言库 testify
 		
 		项目地址：https://github.com/stretchr/testify
 
-		testify是一个具有常见断言和模拟的工具包，可以与标准库无缝贴合使用
+		testify是一个具有常见断言和模拟的工具包，可以与标准库做很好的搭配。
 		
 
 	\end{enumerate}

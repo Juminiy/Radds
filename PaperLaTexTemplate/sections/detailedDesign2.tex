@@ -1,23 +1,230 @@
     \subsection{共识层详细设计与实现}
+		\subsubsection{共识层角色和状态的实现}
+			\begin{enumerate}
+				\item Cluster 
+				 
+					raft 配置中的一组对等节点，几个节点组成的一个集合。
+
+				\item Peer
+				
+					参与共识协议的节点。 peer 可能处于以下状态之一：follower、candidate 或 leader。
+
+				\item Log
+					
+					完整的日志条目集。
+				\item Log Entry 
+				
+					日志中的条目。 每个条目都有一个索引，用于相对于其他日志条目对其进行排序。
+				\item Committed 
+				
+					如果将日志条目应用于状态机是安全的，则该日志条目被视为已提交。 
+					一旦创建条目的领导者已将其复制到大多数对等点，就会提交日志条目。 
+					一旦条目被持久化，对等节点就成功地复制了条目。
+				\item Applied 
+					
+					应用于状态机 (FSM) 的日志条目。
+				\item Term 
+
+					raft 将时间划分为任意长度的项。 
+					任期用连续的整数编号。 
+					每个任期都以选举开始，其中一名或多名候选人试图成为领导者。 
+					如果选举以分裂投票结束，任期将以无领导者结束。
+				\item FSM 
+					
+					有限状态机，存储集群状态
+				\item Client
+
+					客户端输入kv键值对，使用集群的客户端
+			\end{enumerate}
+
+		
+        \subsubsection{共识层角色操作的实现}
+		\begin{enumerate}
+			\item Leader Write
+			大多数写操作必须在领导者上执行。
+			
+			\begin{enumerate}
+			
+				\item RequestConfigChange 
+				
+				更新 raft 对等节点的配置
+			
+				\item Apply 
+				
+				将日志条目应用于大多数对等点和 FSM 上的日志。 有关更多详细信息，请参阅 raft 申请。
+
+				\item Barrier 
+				
+				不修改FSM的特殊Apply，用于等待之前的日志被应用			
+				
+				\item LeadershipTransfer 
+				
+				停止接受客户端请求，并告诉不同的节点开始领导选举
+
+				\item Restore (快照) 
+			
+				用快照的内容覆盖集群状态（不包括集群配置）
+				
+				\item VerifyLeader 
+				
+				向所有投票者发送心跳以确认对等点仍然是领导者				
+
+			\end{enumerate}
 
 
-        
+			\item Follower Write
+			
+
+			BootstrapCluster 在本地日志存储集群配置
+
+			\item Read
+			可以在任何状态的对等点上执行读取操作。
+			
+			\begin{enumerate}
+			
+				\item AppliedIndex	
+				
+				获取应用于 FSM 的最后一个日志条目的索引
+			
+				\item GetConfiguration
+				
+				返回最新的集群配置
+				
+				\item LastContact 
+				
+				获取此对等方最后一次与领导者联系的时间
+			
+				\item LastIndex	
+				
+				获取最新存储的日志条目的索引
+				
+				\item Leader 
+				
+				获取当前领导者的对等方的地址
+			
+				\item Snapshot 
+				
+				将 FSM 的当前状态快照到一个文件中
+			
+				\item State
+				
+				返回对等体的状态
+			
+				\item Stats 
+				
+				返回一些关于对等点和集群的统计信息
+
+			\end{enumerate}
+
+		\end{enumerate}
+
+		\subsubsection{共识层多线程的实现}
+		Raft 使用以下线程来处理操作。 线程的名称以粗体显示，后面是对线程处理的操作的简短描述。 主线程负责处理许多操作。
+			\begin{enumerate}
+				\item run (main thread)
+				基于对等状态的不同行为
+				
+				\begin{enumerate}
+					
+					\item follower
+					\begin{enumerate}
+					\item processRPC (from rpcCh)
+						\begin{enumerate}
+						
+							\item AppendEntries
+							
+							\item RequestVote
+							
+							\item InstallSnapshot
+							
+							\item TimeoutNow
+						
+						\end{enumerate}
+					\item liveBootstrap (from bootstrapCh)
+					\item periodic heartbeatTimer (HeartbeatTimeout)
+					\end{enumerate}
+					\item candidate
+						被调用时自己进行一轮选举
+					
+					\begin{enumerate}
+					
+						\item processRPC (from rpcCh)
+							与follower相同的操作
+
+						\item acceptVote (from askPeerForVote)
+					
+					\end{enumerate}
+					
+					\item leader 
+						
+					首先开始复制到所有对等点，并应用 Noop 日志以确保新领导者已提交到提交索引
+						\begin{enumerate}
+						\item processRPC (from rpcCh)	
+							
+						与跟随者相同，但是我们实际上并不期望收到除 RequestVote 之外的任何 RPC
+
+						\item leadershipTransfer (from leadershipTransferCh) 
+						
+						\item commit (from commitCh) 
+						
+						\item verifyLeader (from verifyCh) 
+						
+						\item user restore snapshot (from userRestoreCh) 
+						
+						\item changeConfig (from configurationChangeCh) 
+						
+						\item dispatchLogs (from applyCh) 
+						
+						通过将日志持久化到磁盘并通知复制 goroutines 复制新日志来处理客户端 Raft.Apply 请求
+						
+						\item checkLease (periodically LeaseTimeout) 
+						
+					\end{enumerate}
+				\end{enumerate}
+				
+				
+				\item runFSM 
+				
+				具有对 FSM 的独占访问权限，所有读写操作都必须向该线程发送消息。 命令：
+从 fsmMutateCh、processLogs、leaderLoop（leader）或 appendEntries RPC（follower/candidate）向 FSM 应用日志
+从 fsmMutateCh、从 restoreUserSnapshot（leader）或 installSnapshot RPC（follower/candidate）恢复快照到 FSM
+捕获快照，来自 fsmSnapshotCh，来自 takeSnapshot（runSnapshot 线程）
+
+				\item runSnapshot
+				
+				处理拍摄快照的较慢部分。 根据 FSM.Snapshot 操作捕获的指针，此线程通过调用 FSMSnapshot.Persist 来保留快照。 还调用 compactLogs 来删除旧日志。
+定期 (SnapshotInterval) takeSnapshot 进行日志压缩
+用户快照，来自userSnapshotCh，takeSnapshot返回给用户
+				
+				\item askPeerForVote (candidate only)
+				
+				短暂的 goroutine，同步发送 RequestVote RPC 给所有投票点，并等待响应。 每个投票节点一个 goroutine。
+				
+				\item replicate (leader only)
+				
+				将日志条目 AppendEntry RPC 同步发送到所有对等点的长时间运行的 goroutine。 还启动心跳线程，可能还有 pipelineDecode 线程。 AppendEntry 失败时运行 sendLatestSnapshot。
+				
+				\begin{enumerate}
+				
+					\item heartbeat (leader only) 
+					
+					长时间运行的 goroutine，同步发送心跳 AppendEntry RPCs 给所有对等点。
+
+
+					
+					\item pipelineDecode (leader only)
+					
+				\end{enumerate}
+
+			\end{enumerate}
 
   	\subsection{客户端层详细设计与实现}
-  	
-		\subsubsection{API 客户端服务平台的实现}
-		
-		
+  			
 		\subsubsection{gRPC API客户端的实现}
-		
-		
-	 	\subsubsection{RESTful API客户端的实现}
-	 	
-	 	
+			 	
 		\subsubsection{CLI 命令行客户端的实现}
 		
 
-
-	\subsection{本章小结}
+	% \subsection{本章小结}
     
  \clearpage

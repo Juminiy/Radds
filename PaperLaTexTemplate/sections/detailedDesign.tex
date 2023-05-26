@@ -4,14 +4,14 @@
 
 	\subsection{基础层详细设计与实现}
 	
-   		\subsubsection{错误处理的实现}
+   		% \subsubsection{错误处理的实现}
 
-		针对go语言本身的特性，错误处理成为整个系统程序开发的首要项目，本文以轻量化，插件化的形式进行错误处理。
+		% 针对go语言本身的特性，错误处理成为整个系统程序开发的首要项目，本文以轻量化，插件化的形式进行错误处理。
 	
-		\begin{lstlisting}[caption=Errors , label=code_radds_errors]
+		% \begin{lstlisting}[caption=Errors , label=code_radds_errors]
 
  
-		\end{lstlisting}                 
+		% \end{lstlisting}                 
 
 	
 			
@@ -22,7 +22,7 @@
     
     	\begin{figure}[H]
     		\centering
-    		\includegraphics[width=0.95\textwidth]{images/two_log}
+    		\includegraphics[width=0.95\textwidth]{pdf/two_log.pdf}
     		\caption{日志系统架构图}
     		\label{two_log}
     	\end{figure}
@@ -38,7 +38,7 @@
 
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.95\textwidth]{images/journal}
+			\includegraphics[width=0.95\textwidth]{pdf/journal.pdf}
 			\caption{日志文件存储结构图}
 			\label{journal}
 		\end{figure}
@@ -68,7 +68,7 @@
 
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.95\textwidth]{images/journal_content}
+			\includegraphics[width=0.95\textwidth]{pdf/journal_content.pdf}
 			\caption{日志文件格式图}
 			\label{journal_content}
 		\end{figure}
@@ -79,12 +79,14 @@
 		紧接着写入所有batch编码后的内容。
 		\item 日志文件写 
 		
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=0.95\textwidth]{images/journal_write}
-			\caption{日志文件写流程图}
-			\label{journal_write}
-		\end{figure}
+		% \begin{figure}[h]
+		% 	\centering
+		% 	\includegraphics[width=0.95\textwidth]{other/pic_pdf.pdf}
+		% 	\caption{日志文件写流程图}
+		% 	\label{journal_write}
+		% \end{figure}
+
+		% \includepdfmerge{./other/pic_pdf.pdf,2}
 		
 		日志写入流程较为简单，在存储系统内部，实现了一个journal的writer。
 		首先调用Next函数获取一个singleWriter，
@@ -112,7 +114,7 @@
 
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.95\textwidth]{images/journal_read}
+			\includegraphics[width=0.95\textwidth]{pdf/journal_read.pdf}
 			\caption{日志文件读流程图}
 			\label{journal_read}
 		\end{figure}
@@ -136,7 +138,7 @@
 		
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.95\textwidth]{images/write_op}
+			\includegraphics[width=0.95\textwidth]{pdf/write_op.pdf}
 			\caption{存储系统写数据流程}
 			\label{write_op}
 		\end{figure}
@@ -169,7 +171,7 @@
 
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.95\textwidth]{images/batch}
+			\includegraphics[width=0.95\textwidth]{pdf/batch.pdf}
 			\caption{batch的数据结构}
 			\label{batch}
 		\end{figure}
@@ -191,7 +193,7 @@
 
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.95\textwidth]{images/internalkey}
+			\includegraphics[width=0.95\textwidth]{pdf/internalkey.pdf}
 			\caption{internalkey的数据结构}
 			\label{internalkey}
 		\end{figure}
@@ -241,7 +243,7 @@
 
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.95\textwidth]{images/write_merge}
+			\includegraphics[width=0.95\textwidth]{pdf/write_merge.pdf}
 			\caption{写合并的流程}
 			\label{write_merge}
 		\end{figure}
@@ -299,7 +301,7 @@
 
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.95\textwidth]{images/snapshot}
+			\includegraphics[width=0.95\textwidth]{pdf/snapshot.pdf}
 			\caption{快照数据示例图}
 			\label{snapshot}
 		\end{figure}
@@ -315,7 +317,7 @@
 		
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.95\textwidth]{images/readop}
+			\includegraphics[width=0.95\textwidth]{pdf/readop.pdf}
 			\caption{读数据流程}
 			\label{readop}
 		\end{figure}
@@ -349,7 +351,6 @@
 		内存数据库用来维护有序的key-value对，
 		其底层是利用跳表实现，绝大多数操作（读／写）的时间复杂度均为O(log n)，
 		有着与平衡树相媲美的操作效率，但是从实现的角度来说简单许多，
-		接下来将介绍一下内存数据库的实现细节。
 
 		\begin{enumerate}
 		\item 跳表的实现
@@ -361,33 +362,26 @@
 		这种数据结构是利用概率均衡技术，加快简化插入、删除操作，
 		且保证绝大大多操作均拥有O(log n)的良好效率。
 		
-		原文的一段话道出了跳表在数据结构中运用离散数学知识的精髓：数据结构是离散的，计算机的本质是离散的。
 
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=0.95\textwidth]{images/skiplist_effect}
-			\caption{跳表的影响}
-			\label{skiplist_effect}
-		\end{figure}
+		% \begin{figure}[H]
+		% 	\centering
+		% 	\includegraphics[width=0.95\textwidth]{pdf/skiplist_effect}
+		% 	\caption{跳表的影响}
+		% 	\label{skiplist_effect}
+		% \end{figure}
 
 		平衡树（以红黑树为代表）是一种非常复杂的数据结构，
 		为了维持树结构的平衡，获取稳定的查询效率，平衡树每次插入可能会涉及到较为复杂的节点旋转等操作。
 		作者设计跳表的目的就是借助概率平衡，来构建一个快速且简单的数据结构，取代平衡树。
 
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=0.95\textwidth]{images/skiplist_intro}
-			\caption{一个跳表的图}
-			\label{skiplist_intro}
-		\end{figure}
+		
 
-		作者从链表讲起，一步步引出了跳表这种结构的由来。
 
-		图a中，所有元素按序排列，被存储在一个链表中，则一次查询之多需要比较N个链表节点；
+		图a中，所有元素按序排列，被存储在一个链表中，则一次查询之多需要比较N个链表节点。
 
-		图b中，每隔2个链表节点，新增一个额外的指针，该指针指向间距为2的下一个节点，如此以来，借助这些额外的指针，一次查询至多只需要⌈n/2⌉ + 1次比较；
+		图b中，每隔2个链表节点，新增一个额外的指针，该指针指向间距为2的下一个节点，如此以来，借助这些额外的指针，一次查询至多只需要⌈n/2⌉ + 1次比较。
 
-		图c中，在图b的基础上，每隔4个链表节点，新增一个额外的指针，指向间距为4的下一个节点，一次查询至多需要⌈n/4⌉ + 2次比较；
+		图c中，在图b的基础上，每隔4个链表节点，新增一个额外的指针，指向间距为4的下一个节点，一次查询至多需要⌈n/4⌉ + 2次比较。
 
 		作者推论，若每隔2个节点，新增一个辅助指针，最终一次节点的查询效率为O(log n)。但是这样不断地新增指针，使得一次插入、删除操作将会变得非常复杂。
 
@@ -402,12 +396,12 @@
 
 		\item 跳表的结构
 		
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=0.95\textwidth]{images/skiplist_arch}
-			\caption{跳表的结构}
-			\label{skiplist_arch}
-		\end{figure}
+		% \begin{figure}[H]
+		% 	\centering
+		% 	\includegraphics[width=0.95\textwidth]{pdf/skiplist_arch}
+		% 	\caption{跳表的结构}
+		% 	\label{skiplist_arch}
+		% \end{figure}
 
 		跳跃列表是按层建造的。
 		底层是一个普通的有序链表。
@@ -418,12 +412,12 @@
 
 		\item 跳表的查找
 		
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=0.95\textwidth]{images/skiplist_search}
-			\caption{跳表的查找图}
-			\label{skiplist_search}
-		\end{figure}
+		% \begin{figure}[H]
+		% 	\centering
+		% 	\includegraphics[width=0.95\textwidth]{pdf/skiplist_search}
+		% 	\caption{跳表的查找图}
+		% 	\label{skiplist_search}
+		% \end{figure}
 		
 		在介绍插入和删除操作之前，本文首先介绍查找操作，该操作是上述两个操作的基础。
 
@@ -447,12 +441,12 @@
 		
 		跳表的插入以查找为基础实现
 
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=0.95\textwidth]{images/skiplist_insert}
-			\caption{跳表的插入图}
-			\label{skiplist_insert}
-		\end{figure}
+		% \begin{figure}[H]
+		% 	\centering
+		% 	\includegraphics[width=0.95\textwidth]{pdf/skiplist_insert}
+		% 	\caption{跳表的插入图}
+		% 	\label{skiplist_insert}
+		% \end{figure}
 
 		在查找的过程中，不断记录每一层的前任节点，如图中红色圆圈所表示的；
 		为新插入的节点随机产生层高（随机产生层高的算法较为简单，依赖最高层数和概率值p，可见下文中的代码实现）；
@@ -484,20 +478,16 @@ func (p *DB) randHeight() (h int) {
 		
 		（1）向后遍历
 
-		若迭代器刚被创建，则根据用户指定的查找范围[Start, Limit)找到一个符合条件的跳表节点；
-		
+		若迭代器刚被创建，则根据用户指定的查找范围[Start, Limit)找到一个符合条件的跳表节点。
 		若迭代器处于中部，则取出上一次访问的跳表节点的后继节点，
-		作为本次访问的跳表节点（后继节点为最底层的后继节点）；
-		
-		利用跳表节点信息（keyvalue数据偏移量，key，value值长度等），获取keyvalue数据；
+		作为本次访问的跳表节点（后继节点为最底层的后继节点）。
+		利用跳表节点信息（keyvalue数据偏移量，key，value值长度等），获取keyvalue数据。
 		
 		（2）向前遍历
 
-		若迭代器刚被创建，则根据用户指定的查找范围[Start, Limit）在跳表中找到最后一个符合条件的跳表节点；
-		
-		若迭代器处于中部，则利用上一次访问的节点的key值，查找比该key值更小的跳表节点；
-		
-		利用跳表节点信息（keyvalue数据偏移量，key，value值长度等），获取keyvalue数据；
+		若迭代器刚被创建，则根据用户指定的查找范围[Start, Limit）在跳表中找到最后一个符合条件的跳表节点。
+		若迭代器处于中部，则利用上一次访问的节点的key值，查找比该key值更小的跳表节点。
+		利用跳表节点信息（keyvalue数据偏移量，key，value值长度等），获取keyvalue数据。
 
 	\end{enumerate}
 
@@ -513,17 +503,15 @@ func (p *DB) randHeight() (h int) {
 
 			内存数据库中，key称为internalKey，其由三部分组成：
 
-			用户定义的key：这个key值也就是原生的key值；
-			
+			用户定义的key：这个key值也就是原生的key值。
 			序列号：存储系统中，每一次写操作都有一个sequence number，标志着写入操作的先后顺序。
 			由于在存储系统中可能会有多条相同key的数据项同时存储在数据库中，
-			因此需要有一个序列号来标识这些数据项的新旧情况。序列号最大的数据项为最新值；
-			
-			类型：标志本条数据项的类型，为更新还是删除；
+			因此需要有一个序列号来标识这些数据项的新旧情况。序列号最大的数据项为最新值。
+			类型：标志本条数据项的类型，为更新还是删除。
 
 			\begin{figure}[H]
 				\centering
-				\includegraphics[width=0.95\textwidth]{images/internalkey}
+				\includegraphics[width=0.95\textwidth]{pdf/internalkey}
 				\caption{内存数据库内部键}
 				\label{internalkey}
 			\end{figure}
@@ -535,11 +523,9 @@ func (p *DB) randHeight() (h int) {
 
 			默认的比较规则：
 
-			首先按照字典序比较用户定义的key（ukey），若用户定义key值大，整个internalKey就大；
-			
-			若用户定义的key相同，则序列号大的internalKey值就小；
-			
-			通过这样的比较规则，则所有的数据项首先按照用户key进行升序排列；
+			首先按照字典序比较用户定义的key（ukey），若用户定义key值大，整个internalKey就大。
+			若用户定义的key相同，则序列号大的internalKey值就小。
+			通过这样的比较规则，则所有的数据项首先按照用户key进行升序排列。
 			当用户key一致时，按照序列号进行降序排列，这样可以保证首先读到序列号大的数据项。
 
 
@@ -570,15 +556,11 @@ type DB struct {
 
 			nodeData中，每个跳表节点占用一段连续的存储空间，每一个字节分别用来存储特定的跳表节点信息。
 
-			第一个字节用来存储本节点key-value数据在kvData中对应的偏移量；
-			
-			第二个字节用来存储本节点key值长度；
-			
-			第三个字节用来存储本节点value值长度；
-			
-			第四个字节用来存储本节点的层高；
-			
-			第五个字节开始，用来存储每一层对应的下一个节点的索引值；
+			第一个字节用来存储本节点key-value数据在kvData中对应的偏移量。
+			第二个字节用来存储本节点key值长度。
+			第三个字节用来存储本节点value值长度。
+			第四个字节用来存储本节点的层高。
+			第五个字节开始，用来存储每一层对应的下一个节点的索引值。
 
 		\item 基础操作
 		
@@ -603,9 +585,8 @@ type DB struct {
 
 				LSM树设计Minor Compaction的目的是为了：
 
-				有效地降低内存的使用率；
-				
-				避免日志文件过大，系统恢复时间过长；
+				有效地降低内存的使用率。
+				避免日志文件过大，系统恢复时间过长。
 				
 				当memory db的数据被持久化到文件中时，
 				存储系统将以一定规则进行文件组织，这种文件格式成为sstable。
@@ -618,9 +599,7 @@ type DB struct {
 					\item 物理结构
 
 					为了提高整体的读写效率，一个sstable文件按照固定大小进行块划分，默认每个块的大小为4KiB。
-					每个Block中，除了存储数据以外，还会存储两个额外的辅助字段：
-	
-					压缩类型；CRC校验码
+					每个Block中，除了存储数据以外，还会存储两个额外的辅助字段：压缩类型和CRC校验。
 	
 					压缩类型说明了Block中存储的数据是否进行了数据压缩，
 					若是，采用了哪种算法进行压缩。存储系统中默认采用Snappy算法进行压缩。
@@ -629,7 +608,7 @@ type DB struct {
 					
 					\begin{figure}[H]
 						\centering
-						\includegraphics[width=0.95\textwidth]{images/sstable_physic.jpeg}
+						\includegraphics[width=0.95\textwidth]{pdf/sstable_physic.pdf}
 						\caption{sstable物理结构}
 						\label{sstable_physic}
 					\end{figure}
@@ -650,7 +629,7 @@ type DB struct {
 	
 	\begin{figure}[H]
 		\centering
-		\includegraphics[width=0.95\textwidth]{images/sstable_logic.jpeg}
+		\includegraphics[width=0.95\textwidth]{pdf/sstable_logic.pdf}
 		\caption{sstable逻辑结构}
 		\label{sstable_logic}
 	\end{figure}
@@ -664,7 +643,7 @@ type DB struct {
 					
 					\begin{figure}[H]
 						\centering
-						\includegraphics[width=0.95\textwidth]{images/datablock.jpeg}
+						\includegraphics[width=0.95\textwidth]{pdf/datablock.pdf}
 						\caption{sstable data block}
 						\label{sstable_data_block}
 					\end{figure}
@@ -695,7 +674,7 @@ type DB struct {
 	
 					\begin{figure}[H]
 						\centering
-						\includegraphics[width=0.95\textwidth]{images/entry_format.jpeg}
+						\includegraphics[width=0.95\textwidth]{pdf/entry_format.pdf}
 						\caption{sstable entry format}
 						\label{sstable_entry_format}
 					\end{figure}
@@ -712,12 +691,6 @@ type DB struct {
 	
 	value内容；
 	
-	\begin{figure}[H]
-		\centering
-		\includegraphics[width=0.95\textwidth]{images/datablock_example_1.jpeg}
-		\caption{sstable data block 示例图1}
-		\label{sstable_datablock_example_1}
-	\end{figure}
 	
 	
 	三组entry按上图的格式进行存储。
@@ -729,12 +702,6 @@ type DB struct {
 	restart point共有两个，
 	因此一个datablock数据段的末尾添加了下图所示的数据：
 	
-	\begin{figure}[H]
-		\centering
-		\includegraphics[width=0.95\textwidth]{images/datablock_example_2.jpeg}
-		\caption{sstable data block 示例图2}
-		\label{sstable_datablock_example_2}
-	\end{figure}
 	
 	尾部数据记录了每一个restart point的值，以及所有restart point的个数。
 	
@@ -749,7 +716,7 @@ type DB struct {
 	
 	\begin{figure}[H]
 		\centering
-		\includegraphics[width=0.95\textwidth]{images/filterblock_format.jpeg}
+		\includegraphics[width=0.95\textwidth]{pdf/filterblock_format.pdf}
 		\caption{sstable filterblock format}
 		\label{sstable_filterblock_format}
 	\end{figure}
@@ -794,7 +761,7 @@ data block i 中最大的key值；
 该data block的大小；
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{images/indexblock_format.jpeg}
+	\includegraphics[width=0.95\textwidth]{pdf/indexblock_format.pdf}
 	\caption{sstable indexblock format}
 	\label{sstable_indexblock_format}
 \end{figure}
@@ -809,7 +776,7 @@ footer大小固定，为48字节，用来存储meta index block与index block在
 字符串sha1哈希的前8个字节。
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{images/footer_format.jpeg}
+	\includegraphics[width=0.95\textwidth]{pdf/footer_format.pdf}
 	\caption{sstable footer format}
 	\label{sstable_footer_format}
 \end{figure}
@@ -946,7 +913,7 @@ func (w *Writer) Append(key, value []byte) error {
 将filterBlock的索引信息写入metaIndexBlock中，写入到磁盘文件；
 写入indexBlock的数据；
 写入footer数据；
-至此为止，所有的数据已经被写入到一个sstable中了，由于一个sstable是作为一个memory db或者Compaction的结果原子性落地的，因此在sstable写入完成之后，将进行更为复杂的存储系统的版本更新，将在接下来的文章中继续介绍。
+至此为止，所有的数据已经被写入到一个sstable中了，由于一个sstable是作为一个memory db或者Compaction的结果原子性落地的，因此在sstable写入完成之后，将进行更为复杂的存储系统的版本更新，将在如下的文章中继续介绍。
 			\end{enumerate}
 
 
@@ -958,7 +925,7 @@ func (w *Writer) Append(key, value []byte) error {
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{images/sstable_read_procedure.jpeg}
+	\includegraphics[width=0.95\textwidth]{pdf/sstable_read_procedure.pdf}
 	\caption{sstable read procedure}
 	\label{sstable_read_procedure}
 \end{figure}
@@ -994,7 +961,7 @@ data block中的数据；
 
 			\begin{figure}[H]
 				\centering
-				\includegraphics[width=0.95\textwidth]{images/sstable_metadata.jpeg}
+				\includegraphics[width=0.95\textwidth]{pdf/sstable_metadata.pdf}
 				\caption{sstable metadata}
 				\label{sstable_metadata}
 			\end{figure}
@@ -1020,7 +987,7 @@ data block中的数据；
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{images/indexblock.jpeg}
+	\includegraphics[width=0.95\textwidth]{pdf/indexblock.pdf}
 	\caption{sstable index block}
 	\label{sstable_index_block}
 \end{figure}
@@ -1041,7 +1008,7 @@ index block是由一系列的键值对组成，每一个键值对表示一个dat
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{images/index_block_find.jpeg}
+	\includegraphics[width=0.95\textwidth]{pdf/index_block_find.pdf}
 	\caption{sstable index block find}
 	\label{sstable_index_block_find}
 \end{figure}
@@ -1062,7 +1029,7 @@ index block是由一系列的键值对组成，每一个键值对表示一个dat
 	
 	\begin{figure}[H]
 		\centering
-		\includegraphics[width=0.95\textwidth]{images/datablock_format.jpeg}
+		\includegraphics[width=0.95\textwidth]{pdf/datablock_format.pdf}
 		\caption{sstable datablock format}
 		\label{sstable_datablock_format}
 	\end{figure}
@@ -1131,7 +1098,7 @@ sstable文件为只读的，因此cache中的数据永远于sstable文件中的�
 
 			\begin{figure}[H]
 				\centering
-				\includegraphics[width=0.95\textwidth]{images/cache_arch.jpeg}
+				\includegraphics[width=0.95\textwidth]{pdf/cache_arch.pdf}
 				\caption{sstable cache arch}
 				\label{sstable_cache_arch}
 			\end{figure}
@@ -1160,7 +1127,7 @@ LRU中则根据Least Recently Used原则进行数据新旧信息的维护，当�
 				
 				\begin{figure}[H]
 					\centering
-					\includegraphics[width=0.95\textwidth]{images/cache_select.jpeg}
+					\includegraphics[width=0.95\textwidth]{pdf/cache_select.pdf}
 					\caption{sstable cache select}
 					\label{sstable_cache_select}
 				\end{figure}
@@ -1173,7 +1140,7 @@ LRU中则根据Least Recently Used原则进行数据新旧信息的维护，当�
 				
 				\begin{figure}[H]
 					\centering
-					\includegraphics[width=0.95\textwidth]{images/cache_expend.jpeg}
+					\includegraphics[width=0.95\textwidth]{pdf/cache_expend.pdf}
 					\caption{sstable cache expand}
 					\label{sstable_cache_expand}
 				\end{figure}
@@ -1281,16 +1248,17 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 
 			\begin{figure}[H]
 				\centering
-				\includegraphics[width=0.95\textwidth]{images/bloom1}
-				\caption{sstable bloom1}
-				\label{sstable_bloom1}
+				\includegraphics[width=0.95\textwidth]{pdf/bloom1.pdf}
+				\caption{sstable bloom3}
+				\label{sstable_bloom3}
 			\end{figure}
+			
 
 当插入值x后，分别利用k个哈希函数（图中为3）利用x的值进行散列，并将散列得到的值与bloom过滤器的容量进行取余，将取余结果所代表的那一位值置为1。
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{images/bloom2}
+	\includegraphics[width=0.95\textwidth]{pdf/bloom2.pdf}
 	\caption{sstable bloom2}
 	\label{sstable_bloom2}
 \end{figure}
@@ -1299,7 +1267,7 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{images/bloom3}
+	\includegraphics[width=0.95\textwidth]{pdf/bloom3.pdf}
 	\caption{sstable bloom3}
 	\label{sstable_bloom3}
 \end{figure}
@@ -1504,7 +1472,7 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 				
 				\begin{figure}[H]
 					\centering
-					\includegraphics[width=0.95\textwidth]{images/minor_compaction.jpeg}
+					\includegraphics[width=0.95\textwidth]{pdf/minor_compaction.pdf}
 					\caption{sstable minor compaction}
 					\label{sstable_minor_compaction}
 				\end{figure}
@@ -1519,7 +1487,7 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 				
 				\begin{figure}[H]
 					\centering
-					\includegraphics[width=0.95\textwidth]{images/major_compaction.jpeg}
+					\includegraphics[width=0.95\textwidth]{pdf/major_compaction.pdf}
 					\caption{sstable major compaction}
 					\label{sstable_major_compaction}
 				\end{figure}
@@ -1624,7 +1592,7 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 
 					\begin{figure}[H]
 						\centering
-						\includegraphics[width=0.95\textwidth]{images/compaction_expand.jpeg}
+						\includegraphics[width=0.95\textwidth]{pdf/compaction_expand.pdf}
 						\caption{sstable compaction expand}
 						\label{sstable_compaction_expand}
 					\end{figure}
@@ -1635,7 +1603,7 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 
 					\begin{figure}[H]
 						\centering
-						\includegraphics[width=0.95\textwidth]{images/table_merge.jpeg}
+						\includegraphics[width=0.95\textwidth]{pdf/table_merge.pdf}
 						\caption{sstable table merge}
 						\label{sstable_table_merge}
 					\end{figure}
@@ -1699,7 +1667,7 @@ manifest文件专用于记录版本信息。存储系统采用了增量式的存
 			
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{images/manifest.jpeg}
+	\includegraphics[width=0.95\textwidth]{pdf/manifest.pdf}
 	\caption{sstable manifest}
 	\label{sstable_manifest}
 \end{figure}
@@ -1726,7 +1694,7 @@ compaction记录信息；
 		
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{images/version_update.jpeg}
+	\includegraphics[width=0.95\textwidth]{pdf/version_update.pdf}
 	\caption{sstable version update}
 	\label{sstable_version_update}
 \end{figure}
@@ -1755,7 +1723,7 @@ compaction记录信息；
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{images/version_recover.jpeg}
+	\includegraphics[width=0.95\textwidth]{pdf/version_recover.pdf}
 	\caption{sstable version recover}
 	\label{sstable_version_recover}
 \end{figure}

@@ -4,17 +4,6 @@
 
 	\subsection{基础层详细设计与实现}
 	
-   		% \subsubsection{错误处理的实现}
-
-		% 针对go语言本身的特性，错误处理成为整个系统程序开发的首要项目，本文以轻量化，插件化的形式进行错误处理。
-	
-		% \begin{lstlisting}[caption=Errors , label=code_radds_errors]
-
- 
-		% \end{lstlisting}                 
-
-	
-			
    		\subsubsection{日志系统的实现}
     
 	   	为了防止写入内存的数据库因为进程异常、操作系统掉电等情况发生丢失，
@@ -43,9 +32,7 @@
 			\label{journal}
 		\end{figure}
 		为了增加读取效率，日志文件中按照block进行划分，每个block的大小为32KiB。
-		每个block中包含了若干个完整的chunk。
-		
-		一条日志记录包含一个或多个chunk。
+		每个block中包含了若干个完整的chunk。一条日志记录包含一个或多个chunk。
 		每个chunk包含了一个7字节大小的header，前4字节是该chunk的校验码，
 		紧接的2字节是该chunk数据的长度，以及最后一个字节是该chunk的类型。
 		其中checksum校验的范围包括chunk的类型以及随后的data数据。
@@ -54,7 +41,6 @@
 		一条日志记录若只包含一个chunk，则该chunk的类型为full。
 		若一条日志记录包含多个chunk，则这些chunk的第一个类型为first, 
 		最后一个类型为last，中间包含大于等于0个middle类型的chunk。
-		
 		由于一个block的大小为32KiB，因此当一条日志文件过大时，
 		会将第一部分数据写在第一个block中，且类型为first，
 		若剩余的数据仍然超过一个block的大小，则第二部分数据写在第二个block中，
@@ -122,8 +108,6 @@
 		
 	
 		\end{enumerate}
-	
-   		\subsubsection{其他工具库的实现}
     
 
 
@@ -276,8 +260,7 @@
 	首先创建一个snapshot，基于该snapshot调用Get接口读取数据；
 	两者的本质是一样的，只不过第一种调用方式默认地以当前数据库的状态创建了一个snapshot，
 	并基于此snapshot进行读取。
-
-	读者可能不了解snapshot（快照）到底是什么？简单地来说，就是数据库在某一个时刻的状态。
+	snapshot（快照）就是数据库在某一个时刻的状态。
 	基于一个快照进行数据的读取，读到的内容不会因为后续数据的更改而改变。
 	
 	由于两种方式本质都是基于快照进行读取的，因此在介绍读操作之前，首先介绍快照。
@@ -291,9 +274,7 @@
 		每条数据项都会被赋予一个序列号，代表这条数据项的新旧状态。一条数据项的序列号越大，
 		表示其中代表的内容为最新值。
 
-		因此，每一个序列号，其实就代表着存储系统的一个状态。
-		换句话说，每一个序列号都可以作为一个状态快照。
-
+		因此，每一个序列号，代表着存储系统的一个状态。
 		当用户主动或者被动地创建一个快照时，存储系统会以当前最新的序列号对其赋值。
 		例如图中用户在序列号为98的时刻创建了一个快照，
 		并且基于该快照读取key为“name”的数据时，即便此刻用户将"name"的值修改为"dog"，
@@ -307,7 +288,6 @@
 		\end{figure}
 
 		所以，利用快照能够保证数据库进行并发的读写操作。
-
 		在获取到一个快照之后，存储系统会为本次查询的key构建一个internalKey（格式如上文所述），
 		其中internalKey的seq字段使用的便是快照对应的seq。
 		通过这种方式可以过滤掉所有seq大于快照号的数据项。
@@ -355,11 +335,8 @@
 		\begin{enumerate}
 		\item 跳表的实现
 		
-		跳表（SkipList）是由William Pugh提出的。
-		他在论文《Skip lists: a probabilistic alternative to balanced trees》
-		中详细地介绍了有关跳表结构、插入删除操作的细节。
 
-		这种数据结构是利用概率均衡技术，加快简化插入、删除操作，
+		跳表是利用概率均衡技术，加快简化插入、删除操作，
 		且保证绝大大多操作均拥有O(log n)的良好效率。
 		
 
@@ -374,24 +351,6 @@
 		为了维持树结构的平衡，获取稳定的查询效率，平衡树每次插入可能会涉及到较为复杂的节点旋转等操作。
 		作者设计跳表的目的就是借助概率平衡，来构建一个快速且简单的数据结构，取代平衡树。
 
-		
-
-
-		图a中，所有元素按序排列，被存储在一个链表中，则一次查询之多需要比较N个链表节点。
-
-		图b中，每隔2个链表节点，新增一个额外的指针，该指针指向间距为2的下一个节点，如此以来，借助这些额外的指针，一次查询至多只需要⌈n/2⌉ + 1次比较。
-
-		图c中，在图b的基础上，每隔4个链表节点，新增一个额外的指针，指向间距为4的下一个节点，一次查询至多需要⌈n/4⌉ + 2次比较。
-
-		作者推论，若每隔2个节点，新增一个辅助指针，最终一次节点的查询效率为O(log n)。但是这样不断地新增指针，使得一次插入、删除操作将会变得非常复杂。
-
-		一个拥有k个指针的结点称为一个k层结点（level k node）。按照上面的逻辑，50\% 的结点为1层节点，25\% 的结点为2层节点，12.5\%。
-		若保证每层节点的分布如上述概率所示，则仍然能够相同的查询效率。图e便是一个示例。
-
-		维护这些辅助指针将会带来较大的复杂度，因此作者将每一层中，
-		每个节点的辅助指针指向该层中下一个节点。
-		故在插入删除操作时，只需跟操作链表一样，修改相关的前后两个节点的内容即可完成，
-		作者将这种数据结构称为跳表。
 
 
 		\item 跳表的结构
@@ -420,19 +379,13 @@
 		% \end{figure}
 		
 		在介绍插入和删除操作之前，本文首先介绍查找操作，该操作是上述两个操作的基础。
-
-例如图中，需要查找一个值为17的链表节点，查找的过程为：
-
+需要查找一个key的链表节点，查找的过程为：
 首先根据跳表的高度选取最高层的头节点；
-
 若跳表中的节点内容小于查找节点的内容，则取该层的下一个节点继续比较；
-
 若跳表中的节点内容等于查找节点的内容，则直接返回；
-
 若跳表中的节点内容大于查找节点的内容，且层高不为0，则降低层高，
 且从前一个节点开始，重新查找低一层中的节点信息；若层高为0，则返回当前节点，
 该节点的key大于所查找节点的key。
-
 综合来说，就是利用稀疏的高层节点，快速定位到所需要查找节点的大致位置，
 再利用密集的底层节点，具体比较节点的内容。
 		
@@ -450,10 +403,8 @@
 
 		在查找的过程中，不断记录每一层的前任节点，如图中红色圆圈所表示的；
 		为新插入的节点随机产生层高（随机产生层高的算法较为简单，依赖最高层数和概率值p，可见下文中的代码实现）；
-		在合适的位置插入新节点（例如图中节点12与节点19之间），并依据查找时记录的前任节点信息，
+		在合适的位置插入新节点，并依据查找时记录的前任节点信息，
 		在每一层中，以链表插入的方式，将该节点插入到每一层的链接中。
-
-
 		链表插入指：将当前节点的Next值置为前任节点的Next值，将前任节点的Next值替换为当前节点。
 
 		\begin{lstlisting}[caption=skiplistRandHeight , label=code_radds_storage_skiplist_randHeight]
@@ -485,7 +436,7 @@ func (p *DB) randHeight() (h int) {
 		
 		（2）向前遍历
 
-		若迭代器刚被创建，则根据用户指定的查找范围[Start, Limit）在跳表中找到最后一个符合条件的跳表节点。
+		若迭代器刚被创建，则根据用户指定的查找范围[Start, Limit)在跳表中找到最后一个符合条件的跳表节点。
 		若迭代器处于中部，则利用上一次访问的节点的key值，查找比该key值更小的跳表节点。
 		利用跳表节点信息（keyvalue数据偏移量，key，value值长度等），获取keyvalue数据。
 
@@ -519,10 +470,8 @@ func (p *DB) randHeight() (h int) {
 			\item 键值比较
 			
 			内存数据库中所有的数据项都是按照键值比较规则进行排序的。
-			这个比较规则可以由用户自己定制，也可以使用系统默认的。在这里介绍一下系统默认的比较规则。
-
+			这个比较规则可以由用户自己定制，也可以使用系统默认的。
 			默认的比较规则：
-
 			首先按照字典序比较用户定义的key（ukey），若用户定义key值大，整个internalKey就大。
 			若用户定义的key相同，则序列号大的internalKey值就小。
 			通过这样的比较规则，则所有的数据项首先按照用户key进行升序排列。
@@ -553,9 +502,7 @@ type DB struct {
 				
 			
 			其中kvData用来存储每一条数据项的key-value数据，nodeData用来存储每个跳表节点的链接信息。
-
 			nodeData中，每个跳表节点占用一段连续的存储空间，每一个字节分别用来存储特定的跳表节点信息。
-
 			第一个字节用来存储本节点key-value数据在kvData中对应的偏移量。
 			第二个字节用来存储本节点key值长度。
 			第三个字节用来存储本节点value值长度。
@@ -575,19 +522,14 @@ type DB struct {
 				如本文之前提到的，系统是的LSM树(Log Structured-Merge Tree)实现，
 				即一次写入过程并不是直接将数据持久化到磁盘文件中，而是将写操作首先写入日志文件中，
 				其次将写操作应用在memtable上。
-
 				当其达到checkpoint点（memtable中的数据量超过了预设的阈值），
 				会将当前memtable冻结成一个不可更改的内存数据库
 				（immutable memory db），并且创建一个新的memtable供系统继续使用。
-
 				immutable memory db会在后台进行一次minor compaction，
 				即将内存数据库中的数据持久化到磁盘文件中。
-
 				LSM树设计Minor Compaction的目的是为了：
-
 				有效地降低内存的使用率。
 				避免日志文件过大，系统恢复时间过长。
-				
 				当memory db的数据被持久化到文件中时，
 				存储系统将以一定规则进行文件组织，这种文件格式成为sstable。
 				在本文中将详细地介绍sstable的文件格式以及相关读写操作。
@@ -616,16 +558,11 @@ type DB struct {
 					\item 逻辑结构
 	
 					在逻辑上，根据功能不同，存储系统在逻辑上又将sstable分为：
-	
 	data block: 用来存储key value数据对；
-	
 	filter block: 用来存储一些过滤器相关的数据（布隆过滤器），但是若用户不指定存储系统使用过滤器，存储系统在该block中不会存储任何内容；
-	
 	meta Index block: 用来存储filter block的索引信息（索引信息指在该sstable文件中的偏移量以及数据长度）；
-	
 	index block：index block中用来存储每个data block的索引信息；
-	
-	footer: 用来存储meta index block及index block的索引信息；
+	footer: 用来存储meta index block及index block的索引信息。
 	
 	\begin{figure}[H]
 		\centering
@@ -651,19 +588,15 @@ type DB struct {
 					第一部分用来存储keyvalue数据。由于sstable中所有的keyvalue对都是严格按序存储的，
 					为了节省存储空间，存储系统并不会为每一对keyvalue对都存储完整的key值，而是存储与上一个key非共享的部分，
 					避免了key重复内容的存储。
-	
 					每间隔若干个keyvalue对，将为该条记录重新存储一个完整的key。
 					重复该过程（默认间隔值为16），
 					每个重新存储完整key的点称之为Restart point。
-	
 					存储系统设计Restart point的目的是在读取sstable内容时，
 					加速查找的过程。
-	
 					由于每个Restart point存储的都是完整的key值，
 					因此在sstable中进行数据查找时，
 					可以首先利用restart point点的数据进行键值比较，
 					以便于快速定位目标数据所在的区域；
-	
 					当确定目标数据所在区域时，
 					再依次对区间内所有数据项逐项比较key值，进行细粒度地查找；
 					该思想有点类似于跳表中利用高层数据迅速定位，
@@ -682,14 +615,10 @@ type DB struct {
 					一个entry分为5部分内容：
 	
 	与前一条记录key共享部分的长度；
-	
 	与前一条记录key不共享部分的长度；
-	
 	value长度；
-	
 	与前一条记录key非共享的内容；
-	
-	value内容；
+	value内容。
 	
 	
 	
@@ -697,12 +626,9 @@ type DB struct {
 	值得注意的是restart\_interval为2，
 	因此每隔两个entry都会有一条数据作为restart point点的数据项，
 	存储完整key值。因此entry3存储了完整的key。
-	
 	此外，第一个restart point为0（偏移量），第二个restart point为16，
 	restart point共有两个，
 	因此一个datablock数据段的末尾添加了下图所示的数据：
-	
-	
 	尾部数据记录了每一个restart point的值，以及所有restart point的个数。
 	
 	\item filter block结构
@@ -710,7 +636,6 @@ type DB struct {
 	为了加快sstable中数据查询的效率，在直接查询datablock中的内容之前，
 	存储系统首先根据filter block中的过滤数据判断指定的datablock中是否有需要查询的数据，
 	若判断不存在，则无需对这个datablock进行数据查找。
-	
 	filter block存储的是data block数据的一些过滤信息。
 	这些过滤数据一般指代布隆过滤器的数据，用于加快查询的速度，
 	
@@ -724,9 +649,7 @@ type DB struct {
 	filter block存储的数据主要可以分为两部分：（1）过滤数据（2）索引数据。
 	
 	其中索引数据中，filter i offset表示第i个filter data在整个filter block中的起始偏移量，filter offset's offset表示filter block的索引数据在filter block中的偏移量。
-	
 	在读取filter block中的内容时，可以首先读出filter offset's offset的值，然后依次读取filter i offset，根据这些offset分别读出filter data。
-	
 	Base Lg默认值为11，表示每2KB的数据，创建一个新的过滤器来存放过滤数据。
 	
 	一个sstable只有一个filter block，其内存储了所有block的filter数据。
@@ -734,31 +657,26 @@ type DB struct {
 	范围内的block的key的集合的filter数据，
 	按数据大小而非block切分主要是为了尽量均匀，
 	以应对存在一些block的key很多，另一些block的key很少的情况。
-	
 	索引和BloomFilter等元数据可随文件一起创建和销毁，即直接存在文件里，不用加载时动态计算，不用维护更新
 				
 	\item meta index block结构
 	
 	meta index block用来存储filter block在整个sstable中的索引信息。
-
 meta index block只存储一条记录：
-
 该记录的key为："filter."与过滤器名字组成的常量字符串
-
 该记录的value为：filter block在sstable中的索引信息序列化后的内容，
 索引信息包括：（1）在sstable中的偏移量（2）数据长度。
 
 	\item index block 结构
 	
 	与meta index block类似，index block用来存储所有data block的相关索引信息。
-
 indexblock包含若干条记录，每一条记录代表一个data block的索引信息。
 
 一条索引包括以下内容：
-
 data block i 中最大的key值；
 该data block起始地址在sstable中的偏移量；
-该data block的大小；
+该data block的大小。
+
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/indexblock_format.pdf}
@@ -793,7 +711,6 @@ footer大小固定，为48字节，用来存储meta index block与index block在
 				\begin{enumerate}
 					\item 写操作
 					
-
 					sstable的写操作通常发生在：
 
 memory db将内容持久化到磁盘文件中时，会创建一个sstable进行写入；
@@ -822,11 +739,8 @@ type tWriter struct {
 直至所有有效数据读取完毕，为该sstable文件附上元数据的过程。
 
 该迭代器可以是一个内存数据库的迭代器，写入情景对应着上述的第一种情况；
-
 该迭代器也可以是一个sstable文件的迭代器，写入情景对应着上述的第二种情况；
-
 sstable的元数据包括：（1）文件编码（2）大小（3）最大key值（4）最小key值
-
 故，理解tableWriter的Append函数是理解整个写入过程的关键。
 
 
@@ -856,7 +770,6 @@ pendingBH记录了上一个dataBlock的索引信息，当下一个dataBlock的�
 				\item Append 
 				
 				一次append函数的主要逻辑如下：
-
 若本次写入为新dataBlock的第一次写入，则将上一个dataBlock的索引信息写入；
 将keyvalue数据写入datablock;
 将过滤信息写入filterBlock；
@@ -896,13 +809,12 @@ func (w *Writer) Append(key, value []byte) error {
 若一个datablock中的数据超过了固定上限，则需要将相关数据写入到磁盘文件中。
 
 在写入时，需要做以下工作：
-
 封装dataBlock，记录restart point的个数；
 若dataBlock的数据需要进行压缩（例如snappy压缩算法），则对dataBlock中的数据进行压缩；
 计算checksum；
 封装dataBlock索引信息（offset，length）；
 将datablock的buffer中的数据写入磁盘文件；
-利用这段时间里维护的过滤信息生成过滤数据，放入filterBlock对用的buffer中；
+利用这段时间里维护的过滤信息生成过滤数据，放入filterBlock对用的buffer中。
 
 \item Close
 
@@ -919,8 +831,7 @@ func (w *Writer) Append(key, value []byte) error {
 
 				\item 读操作
 				
-				读操作作为写操作的逆过程，充分理解了写操作，将会帮助理解读操作。
-
+				读操作作为写操作的逆过程，写操作和读操作是相互转化的。
 下图为在一个sstable中查找某个数据项的流程图：
 
 \begin{figure}[H]
@@ -933,25 +844,18 @@ func (w *Writer) Append(key, value []byte) error {
 大致流程为：
 
 首先判断“文件句柄”cache中是否有指定sstable文件的文件句柄，若存在，则直接使用cache中的句柄；
-
 否则打开该sstable文件，按规则读取该文件的元数据，将新打开的句柄存储至cache中；
-
 利用sstable中的index block进行快速的数据项位置定位，得到该数据项有可能存在的两个data block；
-
 利用index block中的索引信息，首先打开第一个可能的data block；
-
 利用filter block中的过滤信息，判断指定的数据项是否存在于该data block中，若存在，则创建一个迭代器对data block中的数据进行迭代遍历，寻找数据项；若不存在，则结束该data block的查找；
-
 若在第一个data block中找到了目标数据，则返回结果；若未查找成功，则打开第二个data block，重复步骤4；
-
-若在第二个data block中找到了目标数据，则返回结果；若未查找成功，则返回Not Found错误信息；
+若在第二个data block中找到了目标数据，则返回结果；若未查找成功，则返回Not Found错误信息。
 
 		\begin{enumerate}
 			\item 缓存 
 			
 
 			在存储系统中，使用cache来缓存两类数据：
-
 sstable文件句柄及其元数据；
 data block中的数据；
 因此在打开文件之前，首先判断能够在cache中命中sstable的文件句柄，避免重复读取的开销。
@@ -970,13 +874,9 @@ data block中的数据；
 元数据读取的过程可以分为以下几个步骤：
 
 读取文件的最后48字节的利用，即Footer数据；
-
 读取Footer数据中维护的(1) Meta Index Block(2) Index Block两个部分的索引信息并记录，以提高整体的查询效率；
-
 利用meta index block的索引信息读取该部分的内容；
-
 遍历meta index block，查看是否存在“有用”的filter block的索引信息，若有，则记录该索引信息；
-
 若没有，则表示当前sstable中不存在任何过滤信息来提高查询效率；
 
 			\item 数据项的快速定位 
@@ -993,17 +893,12 @@ data block中的数据；
 \end{figure}
 
 index block是由一系列的键值对组成，每一个键值对表示一个data block的索引信息。
-
 键值对的key为该data block中数据项key的最大值，value为该data block的索引信息（offset, length）。
-
 因此若需要查找目标数据项，仅仅需要依次比较index block中的这些索引信息，
 倘若目标数据项的key大于某个data block中最大的key值，则该data block中必然不存在目标数据项。
 故通过这个步骤的优化，可以直接确定目标数据项落在哪个data block的范围区间内。
-
 值得注意的是，与data block一样，index block中的索引信息同样也进行了key值截取，即第二个索引信息的key并不是存储完整的key，而是存储与前一个索引信息的key不共享的部分，区别在于data block中这种范围的划分粒度为16，而index block中为2 。
-
 也就是说，index block连续两条索引信息会被作为一个最小的“比较单元“，在查找的过程中，若第一个索引信息的key小于目标数据项的key，则紧接着会比较第三条索引信息的key。
-
 这就导致最终目标数据项的范围区间为某”两个“data block。
 
 \begin{figure}[H]
@@ -1021,8 +916,6 @@ index block是由一系列的键值对组成，每一个键值对表示一个dat
 
 若过滤数据显示目标数据不存在于data block中，则目标数据一定不存在于data block中；
 若过滤数据显示目标数据存在于data block中，则目标数据可能存在于data block中；
-具体的原理可能参见《布隆过滤器》。
-
 因此利用过滤数据可以过滤掉部分data block，避免发生无谓的查找。
 
 	\item 查找datablock
@@ -1034,11 +927,8 @@ index block是由一系列的键值对组成，每一个键值对表示一个dat
 		\label{sstable_datablock_format}
 	\end{figure}
 	在data block中查找目标数据项是一个简单的迭代遍历过程。虽然data block中所有数据项都是按序排序的，但是作者并没有采用“二分查找”来提高查找的效率，而是使用了更大的查找单元进行快速定位。
-
 与index block的查找类似，data block中，以16条记录为一个查找单元，若entry 1的key小于目标数据项的key，则下一条比较的是entry 17。
-
 因此查找的过程中，利用更大的查找单元快速定位目标数据项可能存在于哪个区间内，之后依次比较判断其是否存在与data block中。
-
 可以看到，sstable很多文件格式设计（例如restart point， index block，filter block，max key）在查找的过程中，都极大地提升了整体的查找效率。
 
 
@@ -1067,7 +957,6 @@ sstable文件为compaction的结果原子性的产生，在其余时间是只读
 \item 并发访问友好性
 
 由于sstable文件具有只读性，因此不存在同一个文件的读写冲突。
-
 存储系统采用引用计数维护每个文件的引用情况，当一个文件的计数值大于0时，对此文件的删除动作会等到该文件被释放时才进行，因此实现了无锁情况下的并发访问。
 
 \item Cache一致性
@@ -1080,9 +969,7 @@ sstable文件为只读的，因此cache中的数据永远于sstable文件中的�
 		\subsubsection{缓存系统的实现}
 
 		缓存对于一个数据库读性能的影响十分巨大，倘若存储系统的每一次读取都会发生一次磁盘的IO，那么其整体效率将会非常低下。
-
 		存储系统中使用了一种基于LRUCache的缓存机制，用于缓存：
-		
 		已打开的sstable文件对象和相关元数据；
 		sstable中的dataBlock的内容；
 		使得在发生读取热数据时，尽量在cache中命中，避免IO读取。在介绍如何缓存、利用这些数据之前，本文首先介绍一下存储系统使用的cache是如何实现的。
@@ -1090,11 +977,9 @@ sstable文件为只读的，因此cache中的数据永远于sstable文件中的�
 		\begin{enumerate}
 			\item Cache结构 
 			
-			存储系统中使用的cache是一种LRUcache，其结构由两部分内容组成：
-
+			存储系统中使用的cache是一种LRUcache，其结构由两部分内容组成
 			Hash table：用来存储数据；
-			
-			LRU：用来维护数据项的新旧信息；
+			LRU：用来维护数据项的新旧信息。
 
 			\begin{figure}[H]
 				\centering
@@ -1104,22 +989,16 @@ sstable文件为只读的，因此cache中的数据永远于sstable文件中的�
 			\end{figure}
 
 			其中Hash table是基于Yujie Liu等人的论文《Dynamic-Sized Nonblocking Hash Table》实现的，用来存储数据。由于hash表一般需要保证插入、删除、查找等操作的时间复杂度为 O(1)。
-
 当hash表的数据量增大时，为了保证这些操作仍然保有较为理想的操作效率，需要对hash表进行resize，即改变hash表中bucket的个数，对所有的数据进行重散列。
-
 基于该文章实现的hash table可以实现resize的过程中不阻塞其他并发的读写请求。
-
 LRU中则根据Least Recently Used原则进行数据新旧信息的维护，当整个cache中存储的数据容量达到上限时，便会根据LRU算法自动删除最旧的数据，使得整个cache的存储容量保持一个常量。
 
 
 			\item Dynamic-sized NonBlocking Hash table
 			
 			在hash表进行resize的过程中，保持Lock-Free是一件非常困难的事。
-
 一个hash表通常由若干个bucket组成，每一个bucket中会存储若干条被散列至此的数据项。当hash表进行resize时，需要将“旧”桶中的数据读出，并且重新散列至另外一个“新”桶中。假设这个过程不是一个原子操作，那么会导致此刻其他的读、写请求的结果发生异常，甚至导致数据丢失的情况发生。
-
 因此，liu等人提出了一个新颖的概念：一个bucket的数据是可以冻结的。
-
 这个特点极大地简化了hash表在resize过程中在不同bucket之间转移数据的复杂度。
 
 			\begin{enumerate}
@@ -1154,19 +1033,14 @@ LRU中则根据Least Recently Used原则进行数据新旧信息的维护，当�
 创建一个空的哈希表，并将旧的哈希表（主要为所有哈希桶构成的数组）转换一个“过渡期”的哈希表，表中的每个哈希桶都被“冻结”；
 后台利用“过渡期”哈希表中的“被冻结”的哈希桶信息对新的哈希表进行内容构建；
 值得注意的是，在完成新的哈希表构建的整个过程中，哈希表并不是拒绝服务的，所有的读写操作仍然可以进行。
-
 哈希表扩张过程中，最小的封锁粒度为哈希桶级别。
-
 当有新的读写请求发生时，若被散列之后得到的哈希桶仍然未构建完成，则“主动”进行构建，并将构建后的哈希桶填入新的哈希表中。后台进程构建到该桶时，发现已经被构建了，则无需重复构建。
 
 因此如上图所示，哈希表扩张结束，哈希桶的个数增加了一倍，于此同时仍然可以对外提供读写服务，仅仅需要哈希桶级别的封锁粒度就可以保证所有操作的一致性跟原子性。
 
 构建哈希桶
-
 当哈希表扩张时，构建一个新的哈希桶其实就是将一个旧哈希桶中的数据拆分成两个新的哈希桶。
-
 拆分的规则很简单。由于一次散列的过程为：
-
 利用散列函数对数据项的key值进行计算；
 将第一步得到的结果取哈希桶个数的余，得到哈希桶的ID；
 因此拆分时仅需要将数据项key的散列值对新的哈希桶个数取余即可。
@@ -1182,7 +1056,6 @@ LRU中则根据Least Recently Used原则进行数据新旧信息的维护，当�
 		\item LRU 
 		
 		除了利用哈希表来存储数据以外，存储系统还利用LRU来管理数据。
-
 存储系统中，LRU利用一个双向循环链表来实现。每一个链表项称之为LRUNode。
 
 \begin{lstlisting}[caption=lruNode , label=code_radds_storage_lruNode]
@@ -1201,14 +1074,11 @@ LRU提供了以下几个接口：
 
 Promote
 若一个hash表中的节点是第一次被创建，则为该节点创建一个LRUNode，并将LRUNode置于链表的头部，表示为最新的数据；
-
 若一个hash表中的节点之前就有相关的LRUNode存在与链表中，将该LRUNode移至链表头部；
-
 若因为新增加一个LRU数据，导致超出了容量上限，就需要根据策略清除部分节点。
 
 Ban
 将hash表节点对应的LRUNode从链表中删除，并“尝试”从哈希表中删除数据。
-
 由于该哈希表节点的数据可能被其他线程正在使用，因此需要查看该数据的引用计数，只有当引用计数为0时，才可以真正地从哈希表中进行删除。
 
 		\item 缓存数据 
@@ -1216,11 +1086,8 @@ Ban
 		存储系统利用上述的cache结构来缓存数据。其中：
 
 cache：来缓存已经被打开的sstable文件句柄以及元数据（默认上限为500个）；
-
 bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB）;
-
 当一个sstable文件需要被打开时，首先从cache中寻找是否已经存在相关的文件句柄，若存在则无需重复打开；
-
 若不存在，则从打开相关文件，并将（1）indexBlock数据，（2）metaIndexBlock数据等相关元数据进行预读。
 
 		\end{enumerate}
@@ -1282,7 +1149,6 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 布隆过滤器位数组的容量m;
 布隆过滤器插入的数据数量n;
 主要的数学结论有：
-
 为了获得最优的准确率，当k = ln2 * (m/n)时，布隆过滤器获得最优的准确性；
 在哈希函数的个数取到最优时，要让错误率不超过є，m至少需要取到最小值的1.44倍；
 
@@ -1290,7 +1156,6 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 			
 			存储系统中的布隆过滤器实现较为简单，以go存储系统为例，
 			有关的代码在filter/bloom.go中。
-
 定义如下，bloom过滤器只是一个int数字。
 
 \begin{lstlisting}[caption=tFile , label=code_radds_storage_typedef_bloomfilter]
@@ -1306,7 +1171,6 @@ func NewBloomFilter(bitsPerKey int) Filter {
 \end{lstlisting}
 
 创建一个generator, 这一步中需要指定哈希函数的个数k，可以看到k = f * ln2，而f = m/n，即数学结论1。
-
 返回的generator中可以添加新的key信息，调用generate函数时，将所有的key构建成一个位数组写在指定的位置。
 
 \begin{lstlisting}[caption=NewGenerator , label=code_radds_storage_NewGenerator]
@@ -1343,9 +1207,7 @@ func (g *bloomFilterGenerator) Add(key []byte) {
 
 
 Generate函数中，将之前一段时间内所有添加的key信息用来构建一个位数组，该位数组中包含了所有key的存在信息。
-
 位数组的大小为用户指定的每个key所分配的位数 乘以 key的个数。
-
 位数组的最末尾用来存储k的大小。
 
 \begin{lstlisting}[caption=Generate , label=code_radds_storage_Generate]
@@ -1424,26 +1286,20 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 			\begin{enumerate}
 				\item 数据持久化
 
-				存储系统是典型的LSM树实现，因此需要对内存中的数据进行持久化。一次内存数据的持久化过程，在存储系统中称为*Minor Compaction*。
-				
+				存储系统是典型的LSM树实现，因此需要对内存中的数据进行持久化。一次内存数据的持久化过程，在存储系统中称为Minor Compaction。
 				一次minor compaction的产出是一个0层的sstable文件，其中包含了所有的内存数据。但是若干个0层文件中是可能存在数据overlap的。
 				
 				\item 提高读写效率
 				
 				正如前面的文章提到，存储系统是一个写效率十分高的存储引擎，存储的过程非常简单，只需要一次顺序的文件写和一个时间复杂度为O(log n)的内存操作即可。
-				
 				相比来说，存储系统的读操作就复杂不少。首先一到两次读操作需要进行一个复杂度为O(log n)的查询操作。若没有在内存中命中数据，则需要在按照数据的新旧程度在0层文件中依次进行查找遍历。由于0层文件中可能存在overlap，因此在最差情况下，可能需要遍历所有的文件。
-				
 				假设存储系统中就是以这样的方式进行数据维护，那么随着运行时间的增长，0层的文件个数会越来越多，在最差的情况下，查询一个数据需要遍历所有的数据文件，这显然是不可接受的。因此存储系统设计了一个*Major Compaction*的过程，将0层中的文件合并为若干个没有数据重叠的1层文件。
-				
 				对于没有数据重叠的文件，一次查找过程就可以进行优化，最多只需要一个文件的遍历即可完成。因此，存储系统设计compaction的目的之一就是为了提高读取的效率。
 				
 				\item 平衡读写差异
 				
 				有了minor compaction和major compaction，所有的数据在后台都会被规定的次序进行整合。但是一次major compaction的过程其本质是一个多路归并的过程，既有大量的磁盘读开销，也有大量的磁盘写开销，显然这是一个严重的性能瓶颈。
-				
 				但是当用户写入的速度始终大于major compaction的速度时，就会导致0层的文件数量还是不断上升，用户的读取效率持续下降。所以存储系统中规定：
-				
 				当0层文件数量超过SlowdownTrigger时，写入的速度主要减慢；
 				当0层文件数量超过PauseTrigger时，写入暂停，直至Major Compaction完成；
 				故compaction也可以起到平衡读写差异的作用。
@@ -1451,7 +1307,6 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 				\item 整理数据
 				
 				存储系统的每一条数据项都有一个版本信息，标识着这条数据的新旧程度。这也就意味着同样一个key，在存储系统中可能存在着多条数据项，且每个数据项包含了不同版本的内容。
-				
 				为了尽量减少数据集所占用的磁盘空间大小，存储系统在major compaction的过程中，对不同版本的数据项进行合并。
 				
 				
@@ -1461,10 +1316,8 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 			\item Compaction过程 
 			
 			由上述所示，compaction分为两类：
-				
-				minor compaction
-				major compaction
-				这两类compaction负责在不同的场景下进行不同的数据整理。
+				minor compaction和				major compaction
+				，这两类compaction负责在不同的场景下进行不同的数据整理。
 			\begin{enumerate}
 				\item Minor Compaction
 				
@@ -1478,7 +1331,6 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 				\end{figure}
 				
 				每次minor compaction结束后，都会生成一个新的sstable文件，也意味着存储系统的版本状态发生了变化，会进行一个版本的更替。有关版本控制的内容，将在接下去一篇文章中详细展开。
-				
 				值得注意的是，minor compaction是一个时效性要求非常高的过程，要求其在尽可能短的时间内完成，否则就会堵塞正常的写入操作，因此minor compaction的优先级高于major compaction。当进行minor compaction的时候有major compaction正在进行，则会首先暂停major compaction。
 				
 				\item Major Compaction
@@ -1498,86 +1350,55 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 				\begin{enumerate}
 					\item 条件
 					
-					那么什么时候，会触发存储系统进行major compaction呢。总结地来说为以下三个条件：
-				
+				何时会触发存储系统进行major compaction呢。总结地来说为以下三个条件：
 				当0层文件数超过预定的上限（默认为4个）；
-				
 				当level i层文件的总大小超过(10\^i)MB；
-				
 				当某个文件无效读取的次数过多；
-				0层文件个数规定
-				
-				
+				第0层文件数据大小限制：
 				由于compaction的其中一个目的是为了提高读取的效率，因此存储系统不允许0层存在过多的文件数，一旦超过了上限值，即可进行major compaction。
-				
-				非0层文件数据大小限制
-				
+				非0层文件数据大小限制：
 				对于level i（i >= 1）的情况来说，一个读取最多只会访问一个sstable文件，因此，本身对于读取效率的影响不会太大。针对于这部分数据发生compaction的条件，从提升读取效率转变成了降低compaction的IO开销。
-				
 				假设存储系统的合并策略只有第一条，那么会导致1层文件的个数越来越多或者总的数据量越来越大，而通常一次合并中，0层文件key的取值范围是很大的，导致每一次0层文件与1层文件进行合并时，1层文件输入文件的总数据量非常庞大。所以不仅需要控制0层文件的个数，同样，每一层文件的总大小同样需要进行控制，使得每次进行compaction时，IO开销尽量保持常量。
-				
 				故存储系统规定，1层文件总大小上限为10MB，2层为100MB，依次类推，最高层（7层）没有限制。
-				
-				文件读取次数过多
-				
 				以上两个机制能够保证随着合并的进行，数据是严格下沉的，但是仍然存在一个问题。
-				
 				假设0层文件完成合并之后，1层文件同时达到了数据上限，同时需要进行合并。
-				
 				更加糟糕的是，在最差的情况下，0-n层的文件同时达到了合并的条件，每一层都需要进行合并。
 				
 				其中一种优化机制是：
-				
 				source层的文件个数只有一个；
 				source层文件与source+1层文件没有重叠；
 				source层文件与source+2层的文件重叠部分不超过10个文件；
 				当满足这几个条件时，可以将souce层的该文件直接移至source+1层。
 				
 				但是该条件非常苛刻，还是无法解决上述问题。为了避免可能存在这种“巨大”的合并开销，存储系统引入了第三个机制：”错峰合并“。
-				
 				那么（1）如何找寻这种适合错峰合并的文件（2）以及如果判断哪个时机是适合进行错峰合并的呢？
-				
-				对于问题（1）存储系统的作者认为，一个文件一次查询的开销为10ms, 若某个文件的查询次数过多，且查询在该文件中不命中, 那么这种行为就可以视为无效的查询开销，这种文件就可以进行错峰合并。
-				
+				对于问题（1），一个文件一次查询的开销为10ms, 若某个文件的查询次数过多，且查询在该文件中不命中, 那么这种行为就可以视为无效的查询开销，这种文件就可以进行错峰合并。
 				对于问题（2），对于一个1MB的文件，对其合并的开销为25ms。因此当一个文件1MB的文件无效查询超过25次时，便可以对其进行合并。
-				
 				对于一个1MB的文件，其合并开销为（1）source层1MB的文件读取，（2）source+1层 10-12MB的文件读取（3）source+1层10-12MB的文件写入。
-				
 				总结25MB的文件IO开销，除以100MB／s的文件IO速度，估计开销为25ms。
 				
 				\item 采样探测
 				
 				在每个sstable文件的元数据中，还有一个额外的字段seekLeft，默认为文件的大小除以16KB。
-				
 				存储系统在正常的数据访问时，会顺带进行采样探测。正常的数据访问包括（1）用户直接调用Get接口（2）用户使用迭代器进行访问。
-				
 				采样的规则：
-				
 				记录本次访问的第一个sstable文件。若在该文件中访问命中，则不做任何处理；若在该文件中访问不命中，则对 该文件的seekLeft标志做减一操作。
-				
 				知道某一个文件的seekLeft标志减少到0时，触发对该文件的错峰合并。
-				
 				故以上三种机制可以保障每次进行compaction的时候，总体开销不会呈现上升趋势。
 				
 				\item 过程
 				
 				整个compaction可以简单地分为以下几步：
-				
 				寻找合适的输入文件；
-
 				根据key重叠情况扩大输入文件集合；
-				
 				多路合并；
-				
-				积分计算；
+				积分计算。
 				
 				\begin{enumerate}
 					\item 寻找输入文件：
 				
 					不同情况下发起的合并动作，其初始的输入文件不同。
-					
 					对于level 0层文件数过多引发的合并场景或由于level i层文件总量过大的合并场景，采用轮转的方法选择起始输入文件，记录了上一次该层合并的文件的最大key，下一次则选择在此key之后的首个文件。
-					
 					对于错峰合并，起始输入文件则为该查询次数过多的文件。
 					
 					\item 扩大输入文件集合
@@ -1608,18 +1429,15 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 						\label{sstable_table_merge}
 					\end{figure}
 					注意在整理的过程中，需要将冗余的数据进行清理，即同一条数据的多个版本信息，只保留最新的那一份。
-	
 	但是要注意，某些仍然在使用的旧版本的数据，在此时不能立刻删除，而得等到用户使用结束，释放句柄后，根据引用计数来进行清除。
 	
 	\item 积分计算
 	
 	每一次compaction都会消除若干source层的旧文件，新增source+1层的新文件，因此触发进行合并的条件状态可能也发生了变化。故在存储系统中，使用了计分牌来维护每一层文件的文件个数及数据总量信息，来挑选出下一个需要进行合并的层数。
-	
 	计分的规则很简单：
-	
 	对于0层文件，该层的分数为文件总数／4；
 	对于非0层文件，该层的分数为文件数据总量／数据总量上限；
-	将得分最高的层数记录，若该得分超过1，则为下一次进行合并的层数；
+	将得分最高的层数记录，若该得分超过1，则为下一次进行合并的层数。
 				\end{enumerate}
 				
 				\end{enumerate}
@@ -1639,9 +1457,7 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 		\subsubsection{版本控制的实现}
 
 		存储系统每次新生成sstable文件，或者删除sstable文件，都会从一个版本升级成另外一个版本。
-
 			换句话说，每次sstable文件的更替对于存储系统来说是一个最小的操作单元，具有原子性。
-
 			版本控制对于存储系统来说至关重要，是保障数据正确性的重要机制。在本文中，将着重从版本数据的格式以及版本升级的过程进行展开。
 
 		\begin{enumerate}
@@ -1649,18 +1465,12 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 		\item Manifest
 
 manifest文件专用于记录版本信息。存储系统采用了增量式的存储方式，记录每一个版本相较于上一个版本的变化情况。
-
-展开来说，一个Manifest文件中，包含了多条Session Record。一个Session Record记录了从上一个版本至该版本的变化情况。
-
-注解
+一个Manifest文件中，包含了多条Session Record。一个Session Record记录了从上一个版本至该版本的变化情况。
 
 变化情况大致包括：
-
-（1）新增了哪些sstable文件；
-
-（2）删除了哪些sstable文件（由于compaction导致）；
-
-（3）最新的journal日志文件标号等；
+（1）新增了哪些sstable文件
+（2）删除了哪些sstable文件（由于compaction导致）
+（3）最新的journal日志文件标号等
 借助这个Manifest文件，存储系统启动时，可以根据一个初始的版本状态，不断地应用这些版本改动，使得系统的版本信息恢复到最近一次使用的状态。
 
 一个Manifest文件的格式示意图如下所示：
@@ -1674,9 +1484,7 @@ manifest文件专用于记录版本信息。存储系统采用了增量式的存
 			
 
 一个Manifest内部包含若干条Session Record，其中第一条Session Record记载了当时存储系统的全量版本信息，其余若干条Session Record仅记录每次更迭的变化情况。
-
 因此，每个manifest文件的第一条Session Record都是一个记录点，记载了全量的版本信息，可以作为一个初始的状态进行版本恢复。
-
 一个Session Record可能包含以下字段：
 
 Comparer的名称；
@@ -1685,11 +1493,10 @@ Comparer的名称；
 数据库已经持久化数据项中最大的sequence number；
 新增的文件信息；
 删除的文件信息；
-compaction记录信息；
+compaction记录信息。
 		\item Commit
 
-每当（1）完成一次major compaction整理内部数据或者（2）通过minor compaction或者重启阶段的日志重放新生成一个0层文件，都会触发存储系统进行一个版本升级。
-
+每当（1）完成一次major compaction整理内部数据或者（2）通过minor compaction或者重启阶段的日志重放新生成一个0层文件，都会触发存储系统进行一个版本升级。、
 一次版本升级的过程如下：
 		
 \begin{figure}[H]
@@ -1707,13 +1514,10 @@ compaction记录信息；
 将session record持久化；
 若这是数据库启动后的第一条session record，则新建一个manifest文件，并将完整的版本信息全部记录进session record作为该manifest的基础状态写入，同时更改current文件，将其指向新建的manifest；
 若数据库中已经创建了manifest文件，则将该条session record进行序列化后直接作为一条记录写入即可；
-将当前的version设置为刚创建的version；
-注解
+将当前的version设置为刚创建的version。
 
 注意，对于存储系统来说，增减某些sstable文件需要作为一个原子性操作，状态变更前后需要保持数据库的一致性。
-
 在整个过程中，原子性体现在：整个操作的完成标志为manifest文件中完整的写入了一条session record，在此之前，即便某些文件写入失败导致进程退出，数据库重启启动时，仍然能够恢复到崩溃之前正确的状态，而将这些无用的sstable文件删除，重新进行compaction动作。
-
 一致性体现在：存储系统状态变更的操作都是以version更新为标记，而version更新是整个流程的最后一步，因此数据库必然都是从一个一致性的状态变更到另外一个一致性的状态。
 
 
@@ -1734,31 +1538,20 @@ compaction记录信息；
 创建一个空的version，并利用manifest文件中的session record依次作apply操作，还原出一个最新的version，注意manifest的第一条session record是一个version的快照，后续的session record记录的都是增量的变化；
 将非current文件指向的其他过期的manifest文件删除；
 将新建的version作为当前数据库的version；
-注解
-
 注意，随着存储系统运行时间的增长，一个manifest中包含的session record会越来越多，故存储系统在每次启动时都会重新创建一个manifest文件，并将第一条session record中记录当前version的快照状态。
-
 其他过期的manifest文件会在下次启动的recover流程中进行删除。
-
 存储系统通过这种方式，来控制manifest文件的大小，但是数据库本身没有重启，manifest还是会一直增长。
 
 
 		\item Current
 
 由于每次启动，都会新建一个Manifest文件，因此存储系统当中可能会存在多个manifest文件。因此需要一个额外的current文件来指示当前系统使用的到底是哪个manifest文件。
-
 该文件中只有一个内容，即当前使用的manifest文件的文件名。
 
 		\item 异常处理
 
-倘若数据库中的manifest文件丢失，存储系统是否能够进行修复呢？
-
-
-
-答案是肯定的。
-
+倘若数据库中的manifest文件丢失，存储系统一定会进行自动修复。
 当存储系统的manifest文件丢失时，所有版本信息也就丢失了，但是本身的数据文件还在。因此存储系统提供了Repairer接口供用户进行版本信息恢复，具体恢复的过程如下：
-
 按照文件编号的顺序扫描所有的sstable文件，获取每个文件的元数据（最大最小key），以及最终数据库的元数据（sequence number等）；
 将所有sstable文件视为0层文件（由于0层文件允许出现key重叠的情况，因此不影响正确性）；
 创建一个新的manifest文件，将扫描得到的数据库元数据进行记录；
@@ -1767,15 +1560,12 @@ compaction记录信息；
 		\item 多版本并发控制
 
 存储系统中采用了MVCC来避免读写冲突。
-
 试想一下，当某个迭代器正在迭代某个sstable文件的内容，而后台的major compaction进程完成了合并动作，试图删除该sstable文件。那么假设没有任何控制并发的机制，就会导致迭代器读到的内容发生了丢失。
-
 最简单的处理方式就是加锁，当发生读的时候，后台所有的写操作都进行阻塞，但是这就机制就会导致存储系统的效率极低。故存储系统采用了多版本并发控制的方法来解决读写冲突。具体体现在：
-
 sstable文件是只读的，每次compaction都只是对若干个sstable文件进行多路合并后创建新的文件，故不会影响在某个sstable文件读操作的正确性；
 sstable都是具有版本信息的，即每次compaction完成后，都会生成新版本的sstable，因此可以保障读写操作都可以针对于相应的版本文件进行，解决了读写冲突；
 compaction生成的文件只有等合并完成后才会写入数据库元数据，在此期间对读操作来说是透明的，不会污染正常的读操作；
-采用引用计数来控制删除行为。当compaction完成后试图去删除某个sstable文件，会根据该文件的引用计数作适当的删除延迟，即引用计数不为0时，需要等待至该文件的计数为0才真正进行删除；
+采用引用计数来控制删除行为。当compaction完成后试图去删除某个sstable文件，会根据该文件的引用计数作适当的删除延迟，即引用计数不为0时，需要等待至该文件的计数为0才真正进行删除。
 
 
 		

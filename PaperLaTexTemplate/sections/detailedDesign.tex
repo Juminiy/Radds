@@ -1,118 +1,116 @@
 \section{Radds存储系统详细设计与实现}
 
 	本章对存储系统的各层进行详细设计与实现，针对各层内部的子系统，各层之间的接口进行详细定义。
-
-	\subsection{基础层详细设计与实现}
 	
-   		\subsubsection{日志系统的实现}
-    
-	   	为了防止写入内存的数据库因为进程异常、操作系统掉电等情况发生丢失，
-	   	存储系统在写内存之前会将本次写操作的内容写入日志文件中。
-    
-    	\begin{figure}[H]
-    		\centering
-    		\includegraphics[width=0.95\textwidth]{pdf/two_log.pdf}
-    		\caption{日志系统架构图}
-    		\label{two_log}
-    	\end{figure}
-		存储系统中，有两个memory db，以及对应的两份日志文件。
-		其中一个memory db是可读写的，当这个db的数据量超过预定的上限时，
-		便会转换成一个不可写的memory db，与此同时，与之对应的日志文件也变成一份frozen log。
-
-		而新生成的immutable memory db则会由后台的minor compaction进程将其转换成一个sstable文件进行持久化，
-		持久化完成，与之对应的frozen log被删除。
-    
-		\begin{enumerate}
-		\item 日志结构
-
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=0.95\textwidth]{pdf/journal.pdf}
-			\caption{日志文件存储结构图}
-			\label{journal}
-		\end{figure}
-		为了增加读取效率，日志文件中按照block进行划分，每个block的大小为32KiB。
-		每个block中包含了若干个完整的chunk。一条日志记录包含一个或多个chunk。
-		每个chunk包含了一个7字节大小的header，前4字节是该chunk的校验码，
-		紧接的2字节是该chunk数据的长度，以及最后一个字节是该chunk的类型。
-		其中checksum校验的范围包括chunk的类型以及随后的data数据。
-	
-		chunk共有四种类型：full，first，middle，last。
-		一条日志记录若只包含一个chunk，则该chunk的类型为full。
-		若一条日志记录包含多个chunk，则这些chunk的第一个类型为first, 
-		最后一个类型为last，中间包含大于等于0个middle类型的chunk。
-		由于一个block的大小为32KiB，因此当一条日志文件过大时，
-		会将第一部分数据写在第一个block中，且类型为first，
-		若剩余的数据仍然超过一个block的大小，则第二部分数据写在第二个block中，
-		类型为middle，最后剩余的数据写在最后一个block中，类型为last。
-		
-		\item 日志内容
-		
-		日志的内容为写入的batch编码后的信息。
-
-		具体的格式为：
-
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=0.95\textwidth]{pdf/journal_content.pdf}
-			\caption{日志文件格式图}
-			\label{journal_content}
-		\end{figure}
-
-		一条日志记录的内容包含：Header和Data
-		其中Header中有（1）当前db的sequence number（2）本次日志记录中所包含的put/del操作的个数。
-		
-		紧接着写入所有batch编码后的内容。
-		\item 日志文件写 
-		
-		% \begin{figure}[h]
-		% 	\centering
-		% 	\includegraphics[width=0.95\textwidth]{other/pic_pdf.pdf}
-		% 	\caption{日志文件写流程图}
-		% 	\label{journal_write}
-		% \end{figure}
-
-		% \includepdfmerge{./other/pic_pdf.pdf,2}
-		
-		日志写入流程较为简单，在存储系统内部，实现了一个journal的writer。
-		首先调用Next函数获取一个singleWriter，
-		这个singleWriter的作用就是写入一条journal记录。
-
-		singleWriter开始写入时，标志着第一个chunk开始写入。
-		在写入的过程中，不断判断writer中buffer的大小，若超过32KiB，
-		将chunk开始到现在做为一个完整的chunk，为其计算header之后将整个chunk写入文件。
-		与此同时reset buffer，开始新的chunk的写入。
-
-		若一条journal记录较大，则可能会分成几个chunk存储在若干个block中。
-
-		\item 日志文件读 
-		
-		同样，日志读取也较为简单。为了避免频繁的IO读取，每次从文件中读取数据时，
-		按block（32KiB）进行块读取。
-
-		每次读取一条日志记录，reader调用Next函数返回一个singleReader。
-		singleReader每次调用Read函数就返回一个chunk的数据。每次读取一个chunk，
-		都会检查这批数据的校验码、数据类型、数据长度等信息是否正确，若不正确，
-		且用户要求严格的正确性，则返回错误，否则丢弃整个chunk的数据。
-
-		循环调用singleReader的read函数，直至读取到一个类型为Last的chunk，
-		表示整条日志记录都读取完毕，返回。
-
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=0.95\textwidth]{pdf/journal_read.pdf}
-			\caption{日志文件读流程图}
-			\label{journal_read}
-		\end{figure}
-		
-		
-	
-		\end{enumerate}
-    
-
-
   	\subsection{存储层详细设计与实现}
 	
+
+
+	  \subsubsection{日志系统的实现}
+    
+	  为了防止写入内存的数据库因为进程异常、操作系统掉电等情况发生丢失，
+	  存储系统在写内存之前会将本次写操作的内容写入日志文件中。
+
+   \begin{figure}[H]
+	   \centering
+	   \includegraphics[width=0.95\textwidth]{pdf/two_log.pdf}
+	   \caption{日志系统架构图}
+	   \label{two_log}
+   \end{figure}
+   存储系统中，有两个memory db，以及对应的两份日志文件。
+   其中一个memory db是可读写的，当这个db的数据量超过预定的上限时，
+   便会转换成一个不可写的memory db，与此同时，与之对应的日志文件也变成一份frozen log。
+
+   而新生成的immutable memory db则会由后台的minor compaction进程将其转换成一个sstable文件进行持久化，
+   持久化完成，与之对应的frozen log被删除。
+
+   \begin{enumerate}
+   \item 日志结构
+
+   \begin{figure}[H]
+	   \centering
+	   \includegraphics[width=0.95\textwidth]{pdf/journal.pdf}
+	   \caption{日志文件存储结构图}
+	   \label{journal}
+   \end{figure}
+   为了增加读取效率，日志文件中按照block进行划分，每个block的大小为32KiB。
+   每个block中包含了若干个完整的chunk。一条日志记录包含一个或多个chunk。
+   每个chunk包含了一个7字节大小的header，前4字节是该chunk的校验码，
+   紧接的2字节是该chunk数据的长度，以及最后一个字节是该chunk的类型。
+   其中checksum校验的范围包括chunk的类型以及随后的data数据。
+
+   chunk共有四种类型：full，first，middle，last。
+   一条日志记录若只包含一个chunk，则该chunk的类型为full。
+   若一条日志记录包含多个chunk，则这些chunk的第一个类型为first, 
+   最后一个类型为last，中间包含大于等于0个middle类型的chunk。
+   由于一个block的大小为32KiB，因此当一条日志文件过大时，
+   会将第一部分数据写在第一个block中，且类型为first，
+   若剩余的数据仍然超过一个block的大小，则第二部分数据写在第二个block中，
+   类型为middle，最后剩余的数据写在最后一个block中，类型为last。
+   
+   \item 日志内容
+   
+   日志的内容为写入的batch编码后的信息。
+
+   具体的格式为：
+
+   \begin{figure}[H]
+	   \centering
+	   \includegraphics[width=0.95\textwidth]{pdf/journal_content.pdf}
+	   \caption{日志文件格式图}
+	   \label{journal_content}
+   \end{figure}
+
+   一条日志记录的内容包含：Header和Data
+   其中Header中有（1）当前db的sequence number（2）本次日志记录中所包含的put/del操作的个数。
+   
+   紧接着写入所有batch编码后的内容。
+   \item 日志文件写 
+   
+   % \begin{figure}[h]
+   % 	\centering
+   % 	\includegraphics[width=0.95\textwidth]{other/pic_pdf.pdf}
+   % 	\caption{日志文件写流程图}
+   % 	\label{journal_write}
+   % \end{figure}
+
+   % \includepdfmerge{./other/pic_pdf.pdf,2}
+   
+   日志写入流程较为简单，在存储系统内部，实现了一个journal的writer。
+   首先调用Next函数获取一个singleWriter，
+   这个singleWriter的作用就是写入一条journal记录。
+
+   singleWriter开始写入时，标志着第一个chunk开始写入。
+   在写入的过程中，不断判断writer中buffer的大小，若超过32KiB，
+   将chunk开始到现在做为一个完整的chunk，为其计算header之后将整个chunk写入文件。
+   与此同时reset buffer，开始新的chunk的写入。
+
+   若一条journal记录较大，则可能会分成几个chunk存储在若干个block中。
+
+   \item 日志文件读 
+   
+   同样，日志读取也较为简单。为了避免频繁的IO读取，每次从文件中读取数据时，
+   按block（32KiB）进行块读取。
+
+   每次读取一条日志记录，reader调用Next函数返回一个singleReader。
+   singleReader每次调用Read函数就返回一个chunk的数据。每次读取一个chunk，
+   都会检查这批数据的校验码、数据类型、数据长度等信息是否正确，若不正确，
+   且用户要求严格的正确性，则返回错误，否则丢弃整个chunk的数据。
+
+   循环调用singleReader的read函数，直至读取到一个类型为Last的chunk，
+   表示整条日志记录都读取完毕，返回。
+
+   \begin{figure}[H]
+	   \centering
+	   \includegraphics[width=0.95\textwidth]{pdf/journal_read.pdf}
+	   \caption{日志文件读流程图}
+	   \label{journal_read}
+   \end{figure}
+   
+   
+
+   \end{enumerate}
+
 		\subsubsection{写数据的实现}
 		
 		\begin{enumerate}
@@ -206,10 +204,10 @@
 
 		（1）第一个写入操作获取到写入锁；
 		
-		（2）在当前写操作的数据量未超过合并上限，且有其他写操作pending的情况下，
-		将其他写操作的内容合并到自身；
+		（2）在当前写操作的数据量未超过合并上限，且有其它写操作pending的情况下，
+		将其它写操作的内容合并到自身；
 		
-		（3）若本次写操作的数据量超过上限，或者无其他pending的写操作了，
+		（3）若本次写操作的数据量超过上限，或者无其它pending的写操作了，
 		将所有内容统一写入日志文件，并写入到内存数据库中；
 		
 		（4）通知每一个被合并的写操作最终的写入结果，释放或移交写锁；
@@ -990,14 +988,14 @@ sstable文件为只读的，因此cache中的数据永远于sstable文件中的�
 
 			其中Hash table是基于Yujie Liu等人的论文《Dynamic-Sized Nonblocking Hash Table》实现的，用来存储数据。由于hash表一般需要保证插入、删除、查找等操作的时间复杂度为 O(1)。
 当hash表的数据量增大时，为了保证这些操作仍然保有较为理想的操作效率，需要对hash表进行resize，即改变hash表中bucket的个数，对所有的数据进行重散列。
-基于该文章实现的hash table可以实现resize的过程中不阻塞其他并发的读写请求。
+基于该文章实现的hash table可以实现resize的过程中不阻塞其它并发的读写请求。
 LRU中则根据Least Recently Used原则进行数据新旧信息的维护，当整个cache中存储的数据容量达到上限时，便会根据LRU算法自动删除最旧的数据，使得整个cache的存储容量保持一个常量。
 
 
 			\item Dynamic-sized NonBlocking Hash table
 			
 			在hash表进行resize的过程中，保持Lock-Free是一件非常困难的事。
-一个hash表通常由若干个bucket组成，每一个bucket中会存储若干条被散列至此的数据项。当hash表进行resize时，需要将“旧”桶中的数据读出，并且重新散列至另外一个“新”桶中。假设这个过程不是一个原子操作，那么会导致此刻其他的读、写请求的结果发生异常，甚至导致数据丢失的情况发生。
+一个hash表通常由若干个bucket组成，每一个bucket中会存储若干条被散列至此的数据项。当hash表进行resize时，需要将“旧”桶中的数据读出，并且重新散列至另外一个“新”桶中。假设这个过程不是一个原子操作，那么会导致此刻其它的读、写请求的结果发生异常，甚至导致数据丢失的情况发生。
 因此，liu等人提出了一个新颖的概念：一个bucket的数据是可以冻结的。
 这个特点极大地简化了hash表在resize过程中在不同bucket之间转移数据的复杂度。
 
@@ -1079,7 +1077,7 @@ Promote
 
 Ban
 将hash表节点对应的LRUNode从链表中删除，并“尝试”从哈希表中删除数据。
-由于该哈希表节点的数据可能被其他线程正在使用，因此需要查看该数据的引用计数，只有当引用计数为0时，才可以真正地从哈希表中进行删除。
+由于该哈希表节点的数据可能被其它线程正在使用，因此需要查看该数据的引用计数，只有当引用计数为0时，才可以真正地从哈希表中进行删除。
 
 		\item 缓存数据 
 		
@@ -1536,10 +1534,10 @@ compaction记录信息。
 
 利用Current文件读取最近使用的manifest文件；
 创建一个空的version，并利用manifest文件中的session record依次作apply操作，还原出一个最新的version，注意manifest的第一条session record是一个version的快照，后续的session record记录的都是增量的变化；
-将非current文件指向的其他过期的manifest文件删除；
+将非current文件指向的其它过期的manifest文件删除；
 将新建的version作为当前数据库的version；
 注意，随着存储系统运行时间的增长，一个manifest中包含的session record会越来越多，故存储系统在每次启动时都会重新创建一个manifest文件，并将第一条session record中记录当前version的快照状态。
-其他过期的manifest文件会在下次启动的recover流程中进行删除。
+其它过期的manifest文件会在下次启动的recover流程中进行删除。
 存储系统通过这种方式，来控制manifest文件的大小，但是数据库本身没有重启，manifest还是会一直增长。
 
 
@@ -1567,6 +1565,4 @@ sstable都是具有版本信息的，即每次compaction完成后，都会生成
 compaction生成的文件只有等合并完成后才会写入数据库元数据，在此期间对读操作来说是透明的，不会污染正常的读操作；
 采用引用计数来控制删除行为。当compaction完成后试图去删除某个sstable文件，会根据该文件的引用计数作适当的删除延迟，即引用计数不为0时，需要等待至该文件的计数为0才真正进行删除。
 
-
-		
 \end{enumerate}

@@ -1,20 +1,25 @@
 \section*{结论}
 \addcontentsline{toc}{section}{结论}
 
+综上所述，本文讨论了使用Golang编程语言中的Raft共识算法和LSM-tree数据结构实现分布式数据存储系统。 Raft 共识算法提供了一种跨节点集群复制状态机的容错方式。 本文在 Golang 中实现了 Raft 算法，以实现集群中节点之间的共识。
+
+	LSM-tree 数据结构针对写入密集型工作负载进行了优化，并使用分层方法来存储数据。 本文在 Golang 中实现了 LSM-tree 数据结构，以分布式方式存储键值对。 本文的实现包括内存缓冲区、磁盘上的一组排序文件以及用于合并排序文件和减少文件数量的压缩机制。
+	
+	本文将 Raft 共识算法和 LSM-tree 数据结构相结合，用 Golang 构建分布式数据存储系统。 本文的系统由多个节点组成，这些节点使用 Raft 算法相互通信。 每个节点存储 LSM-tree 数据结构的副本。 当客户端向系统写入数据时，首先将数据写入领导节点上 LSM-tree 的内存缓冲区。 领导节点然后使用 Raft 算法将数据复制到集群中的所有其它节点。 复制数据后，领导节点会将内存缓冲区刷新到磁盘并将数据添加到 LSM-tree。
+	
+	当客户端从系统读取数据时，读取请求被发送到领导节点。 领导节点从 LSM-tree 中读取数据并将其发送回客户端。 如果读请求被发送到一个follower节点，follower节点将请求重定向到leader节点。
+	
+	本文设计的客户端满足客户端设计的艺术法则（the-art-of-the-command-line），能够高效的使用并进行系统数据操作和集群操作。
+	
+	总之，Raft 共识算法和 LSM-tree 数据结构的结合提供了一种以分布式方式存储和检索数据的可靠且高效的方式。 Golang 编程语言为实现分布式数据存储系统提供了一个强大而高效的平台。 本文的实施展示了结合这些技术构建分布式数据存储系统的有效性。
+	
 
 	
-	\begin{enumerate}[fullwidth,itemindent=2em,listparindent=2em]	
-	% 跨平台的服务端和客户端
+	% \begin{enumerate}[fullwidth,itemindent=2em,listparindent=2em]	
+	% % 跨平台的服务端和客户端
 		
-		\item 阅读了LSM-Tree和Raft算法的论文原文
-		
-		\item 设计了键值型内存数据结构和持久化存储结构
-				
-		\item 依据Golang语言的天然并发特性，实现raft算法和LSM-Tree存储结构
-		
-		\item 参考了C++版本的leveldb实现，使用Golang语言完成整个系统的实现
-
+	
 		 
-	\end{enumerate}
+	% \end{enumerate}
 	
 \clearpage

@@ -1,0 +1,137 @@
+\section{相关背景知识介绍}
+
+	\subsection{开发工具和环境}
+  
+  	\begin{enumerate}[fullwidth,itemindent=2em,listparindent=2em]
+
+  		\item 开发工具：VS Code
+  		
+		Visual Studio Code（简称 VS Code）是一款由微软开发且跨平台的免费集成开发环境。该软件支持语法高亮、代码自动补全（又称 IntelliSense）、代码重构功能，并且内置了命令行工具和 Git 版本控制系统。用户可以更改主题和键盘快捷方式实现个性化设置，也可以通过内置的扩展程序商店安装扩展以拓展软件功能。
+		VS Code 使用 Monaco Editor 作为其底层的代码编辑器。
+		Visual Studio Code 的源代码以 MIT许可证在 GitHub 上释出，而可执行文件使用了专门的许可证。
+			
+		\item 开发环境
+			\begin{enumerate}
+				\item X86-64 GNU/Linux-Ubuntu22.04
+				
+				Linux是一种自由和开放源码的类UNIX操作系统。该操作系统的内核由林纳斯·托瓦兹在1991年10月5日首次发布，再加上用户空间的应用程序之后，就成为了Linux操作系统。
+				Linux严格来说是单指操作系统的内核，因操作系统中包含了许多用户图形接口和其它实用工具。如今Linux常用来指基于Linux的完整操作系统，内核则改以Linux内核称之。
+				由于这些支持用户空间的系统工具和库主要由理查德·斯托曼于1983年发起的GNU计划提供，自由软件基金会提议将其组合系统命名为GNU/Linux。
+				
+				Ubuntu是基于Debian，以桌面应用为主的Linux发行版。
+				Ubuntu有三个正式版本，包括桌面版、服务器版及用于物联网设备和机器人的Core版。
+				前述三个版本既能安装于实体电脑，也能安装于虚拟环境。
+				
+				\item Golang1.20
+				
+				Go（又称Golang）是Google开发的一种静态强类型、编译型、并发型，并具有垃圾回收功能的编程语言。
+				罗伯特·格瑞史莫、罗勃·派克及肯·汤普逊于2007年9月开始设计Go，稍后伊恩·兰斯·泰勒（Ian Lance Taylor）、拉斯·考克斯（Russ Cox）加入项目。
+				Go是基于Inferno操作系统所开发的。
+				Go于2009年11月正式宣布推出，成为开放源代码项目，支持Linux、macOS、Windows等操作系统。
+			
+			\end{enumerate}
+		\item 测试环境
+			\begin{enumerate}
+				\item {X86-64 Windows11}
+				
+				Windows 11是微软于2021年推出的Windows NT系列操作系统，为Windows 10的后继者。
+				出于安全考虑，Windows 11的系统需求比Windows 10有所提高。
+				微软仅支持使用英特尔酷睿第8代或更新的处理器、AMD Zen+或更新的处理器及高通骁龙850或更新的处理器的设备。
+				Windows 11不再支持32位x86架构或使用BIOS固件的设备。
+				% \item X86-64 Windows11 WSL2-GNU/Linux-Ubuntu20.04
+				
+				% 适用于Linux的Windows子系统（英语：Windows Subsystem for Linux，简称WSL）是一个为在Windows 10和Windows Server 2019以上能够原生运行Linux二进制可执行文件（ELF格式）的兼容层。
+				% WSL提供了一个由微软开发的Linux兼容的内核接口（不包含Linux内核代码），然后可以在其上运行GNU用户空间，例如Ubuntu，openSUSE，SUSE Linux Enterprise Server，Debian和Kali Linux。
+				% 这样的用户空间可能包含Bash shell和命令语言，使用本机GNU/Linux命令行工具（sed，awk等），编程语言解释器（Ruby，Python等），甚至是图形应用程序（使用主机端的X窗口系统）。
+				\item X86-64 GNU/Linux-Ubuntu22.04
+				
+				前文已经提及
+				\item Arm64 Darwin MacOS Ventura13.3
+				
+				Darwin 是由苹果公司于2000年所发布的一个开放源代码操作系统。Darwin 是 macOS 和 iOS 操作环境的操作系统部分。苹果公司于 2000 年把 Darwin 发布给开放源代码社群。
+				Darwin 是一种类 Unix 操作系统，包含开放源代码的 XNU 内核，其以微核心为基础的核心架构来实现 Mach，而操作系统的服务和用户空间工具则以 BSD 为基础。
+				类似其它类 Unix 操作系统，Darwin 也有对称多处理器的优点，高性能的网络设施和支持多种集成的文件系统。
+				Darwin的内核是XNU，它是一种混合内核，它采用了来自OSF的OSFMK 7.3（Open Software Foundation Mach Kernel）和FreeBSD的各种要素（包括过程模型，网络堆栈和虚拟文件系统），还有一个称为I/O Kit的面向对象的设备驱动程序API。
+				混合内核设计使其具备了了微内核的灵活性和宏内核的性能。
+			\end{enumerate}
+  
+  	\end{enumerate}
+     
+    \subsection{LSM-Tree存储结构}
+    
+	在计算机科学中，日志结构合并树（也称为 LSM 树或 LSMT）是一种具有一定性能特征的数据结构，可以为具有高插入量的文件（例如事务日志）提供索引访问 数据。 
+	LSM 树和其它搜索树一样，维护键值对。 LSM 树将数据保存在两个或多个独立的结构中，每个结构都针对其各自的底层存储介质进行了优化； 数据在两个结构之间有效地、批量地同步。
+
+	LSM 树的一个简单版本是两级 LSM 树。两级 LSM 树包含两个树状结构，称为 C0 和 C1。 C0 较小，完全驻留在内存中，而 C1 驻留在磁盘上。 
+	新记录被插入到内存驻留的 C0 组件中。 如果插入导致 C0 组件超过某个大小阈值，则从 C0 中删除一个连续的条目段，并合并到磁盘上的 C1 中。 
+	LSM 树的性能特征源于这样一个事实，即每个组件都根据其底层存储介质的特性进行调整，并且使用一种让人联想到归并排序的算法，数据可以滚动批次高效地跨介质迁移。
+
+	实践中使用的大多数 LSM 树都采用多个级别。 
+	0 级保存在主内存中，可以用树表示。 
+	磁盘上的数据被组织成排序的数据运行。 每次运行都包含按索引键排序的数据。 
+	一次运行可以在磁盘上表示为单个文件，或者表示为具有非重叠键范围的文件集合。
+	要对特定键执行查询以获取其关联值，必须在 Level 0 树中进行搜索，并且每次都运行。 
+	LSM 树的 Stepped-Merge 版本是 LSM 树的变体，它支持多层次，每一层次都有多个树结构。
+	一个特定的键可能会出现在多次运行中，这对查询意味着什么取决于应用程序。 一些应用程序只需要具有给定键的最新键值对。 某些应用程序必须以某种方式组合这些值以获得要返回的正确聚合值。 例如，在 Apache Cassandra 中，每个值代表数据库中的一行，不同版本的行可能有不同的列集。 
+	为了降低查询成本，系统必须避免运行次数过多的情况。
+	随着越来越多的读写工作负载在 LSM-tree 存储结构下共存，由于 LSM-tree 压缩操作经常使缓冲区缓存中的缓存数据失效，读取数据访问可能会遇到高延迟和低吞吐量。 
+	为了重新启用有效的缓冲区缓存以实现快速数据访问，提出并实现了一种日志结构缓冲合并树（LSbM-tree）。 
+
+	\subsection{Raft共识性算法}
+
+	Raft是一种用于替代Paxos的共识算法。
+	相比于Paxos，Raft的目标是提供更清晰的逻辑分工使得算法本身能被更好地理解，同时它安全性更高，并能提供一些额外的特性。
+	Raft能为在计算机集群之间部署有限状态机提供一种通用方法，并确保集群内的任意节点在某种状态转换上保持一致。
+	Raft算法的开源实现众多，在Go、C++、Java以及 Scala中都有完整的代码实现。
+
+    \subsection{涉及的开源库}
+	
+	\begin{enumerate}[fullwidth,itemindent=2em,listparindent=2em]
+	
+		\item Golang跨平台文件系统通知库 fsnotify
+		
+		项目地址：https://github.com/fsnotify/fsnotify
+
+		fsnotify是一个Go库，用于在Windows、Linux、macOS、BSD和illumos上提供跨平台文件系统通知。
+
+		\item Golang文件压缩库 snappy
+		
+		项目地址：https://github.com/golang/snappy
+
+		Snappy是一个压缩/解压库。它不以最大压缩或与任何其它压缩库兼容为目标；相反，它以非常高的速度和合理的压缩为目标。例如，与zlib的最快模式相比，Snappy对大多数输入来说要快一个数量级，但由此产生的压缩文件要大20\%到100\%。
+		这个库的优点有：
+		快速：压缩速度为250 MB/秒及以上，没有汇编代码。
+		稳定：在过去几年里，Snappy在谷歌的生产环境中压缩和解压缩了PB的数据。Snappy bitstream格式是稳定的，不会在版本之间更改。
+		稳健：Snappy解压器旨在在遇到损坏或恶意输入时不会崩溃。
+		golang/snappy是google/snappy（C++）的官方实现。
+
+		\item Golang测试库 Ginkgo｜Gomega
+		
+		项目地址：https://github.com/onsi/ginkgo
+
+		Ginkgo 是 Go 的一个测试框架，旨在帮助开发者编写富有表现力的测试。 
+		它与 Gomega 匹配器库搭配使用。 
+		结合使用时，Ginkgo 和 Gomega 为编写测试提供了丰富且富有表现力的 DSL（领域特定语言）。
+		Ginkgo 有时被描述为“行为驱动开发”（BDD）框架。 
+		实际上，Ginkgo 是一个通用测试框架，在各种测试环境中得到积极使用：单元测试、集成测试、验收测试、性能测试等。
+		
+		\item Golang性能度量库 go-metrics
+		
+		项目地址：github.com/armon/go-metrics 
+		
+		go-metrics是一个Go应用性能度量指标的库，go-metrics提供的meter、histogram可以覆盖Go应用基本性能指标需求，如：吞吐性能、延迟数据分布等。
+		此外，go-metrics是模仿JVM Metrics开发的一个库，可以与Golang的runtime无缝集成。
+		
+		
+		\item Golang断言库 testify
+		
+		项目地址：https://github.com/stretchr/testify
+
+		testify是一个具有常见断言和模拟的工具包，可以与Golang标准库做很好的搭配。
+		
+
+	\end{enumerate}
+	
+
+	
+\clearpage

@@ -1,7 +1,5 @@
 \section{Radds存储系统总体设计}
 
-	
-	
 	\subsection{存储系统架构设计}
 
 	Radds存储系统总体架构组成如下所示
@@ -33,8 +31,7 @@
 			集群的Leader通过数据规模和API调用次数分配工作节点数量，这个Leader仅仅是一个Group的Leader，整个集群可以有多个Leader，它们分别属于不同的Group。
 			集群中的一个节点如果作为一个Group的Leader，那么它存储这个Group的所有数据：用户数据，元数据，缓存数据。
 			集群中的一个节点如果作为一个Group的WorkNode，那么它只存储这个Group的用户数据。
-			
-			集群中的一个节点会存在不同的状态，可能的情况有：
+			集群中的一个节点会存在不同的状态，可能的状态有：
 	
 			（1）Leader宕机，一个Group的Leader宕机后，其它节点在超时时间内未收到心跳信息则会感知到Group Leader宕机，
 			根据Raft算法选择Group的新一任Leader，当新一任的Leader选举后会向客户端中台发送消息并从客户端中台取得必要的元数据。
@@ -104,22 +101,19 @@
 		存储系统的写操作并不是直接写入磁盘的，而是首先写入到内存。
 		假设写入到内存的数据还未来得及持久化，存储系统进程发生了异常，抑或是宿主机器发生了宕机，
 		会造成用户的写入发生丢失。因此存储系统在写内存之前会首先将所有的写操作写到日志文件中，
-		也就是log文件。当以下异常情况发生时，均可以通过日志文件进行恢复：
+		也就是log文件。当以下五种异常情况发生时，均可以通过日志文件进行恢复。
 
 		\begin{enumerate}
-			\item 写log期间进程异常；
-			\item 写log完成，写内存未完成；
-			\item write动作完成（即log、内存写入都完成）后，进程异常；
-			\item immutable memtable持久化过程中进程异常；
-			\item 其它压缩异常（较为复杂，首先不在这里介绍）；
+			\item 写log期间进程异常。
+			\item 写log完成，写内存未完成。
+			\item write动作完成（即log、内存写入都完成）后，进程异常。
+			\item immutable memtable持久化过程中进程异常。
+			\item 其它压缩异常（较为复杂，首先不在这里介绍）。
 		\end{enumerate}
 	
-	异常发生时，处理的情况分两种：
-		\begin{enumerate}
-			\item 当第一类情况发生时，数据库重启读取log时，
-			发现异常日志数据，抛弃该条日志数据，即视作这次用户写入失败，保障了数据库的一致性；
-			\item 当第二类，第三类，第四类情况发生了，均可以通过redo日志文件中记录的写入操作完成数据库的恢复。
-		\end{enumerate}
+		异常发生时，处理的情况分两种。当第一类情况发生时，数据库重启读取log时，
+		发现异常日志数据，抛弃该条日志数据，即视作这次用户写入失败，保障了数据库的一致性。
+		当第二类，第三类，第四类情况发生了，均可以通过redo日志文件中记录的写入操作完成数据库的恢复。
 		每次日志的写操作都是一次顺序写，因此写效率高，整体写入性能较好。
 		此外，存储系统的用户写操作的原子性同样通过日志来实现。
 
@@ -136,8 +130,7 @@
 		该过程也称为compaction。随着compaction的进行，sstable文件在逻辑上被分成若干层，
 		由内存数据直接dump出来的文件称为level 0层文件，后期整合而成的文件为level i 层文件，
 		这也是以leveldb为原型的存储系统的这个名字的由来。
-
-		注意，所有的sstable文件本身的内容是不可修改的，这种设计带来了许多优势，简化了很多设计。
+		所有的sstable文件本身的内容是不可修改的，这种设计带来了许多优势，简化了很多设计。
 
 		\subsubsection{文件元数据manifest总体设计}
 
@@ -159,19 +152,6 @@
 		\subsubsection{版本号current总体设计}
 
 		一个版本信息主要维护了每一层所有文件的元数据。
-% 		\begin{lstlisting}[caption=version , label=code_radds_storage_tfile]
-% type version struct {
-%     s *session // session - version
-%     levels []tFiles // file meta
-%     cLevel int // next level
-%     cScore float64 // current score
-%     cSeek unsafe.Pointer
-%     closing  bool
-%     ref      int
-%     released bool
-% }
-% 		\end{lstlisting}
-
 		当每次compaction完成（或者换一种更容易理解的说法，当每次sstable文件有新增或者减少），l
 		eveldb都会创建一个新的version，创建的规则是: versionNew = versionOld + versionEdit
 		versionEdit指代的是基于旧版本的基础上，变化的内容（例如新增或删除了某些sstable文件）。
@@ -184,7 +164,7 @@
 
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.70\textwidth]{pdf/manifest.pdf}
+			\includegraphics[width=0.50\textwidth]{pdf/manifest.pdf}
 			\caption{版本信息记录数据结构}
 			\label{radds_storage_manifest}
 		\end{figure}

@@ -3,8 +3,6 @@
 	本章对存储系统的各层进行详细设计与实现，针对各层内部的子系统，各层之间的接口进行详细定义。
 	
   	\subsection{存储层详细设计与实现}
-	
-
 
 	  \subsubsection{日志系统的实现}
     
@@ -57,7 +55,7 @@
    日志的内容为写入的batch编码后的信息，具体的格式为：
    \begin{figure}[H]
 	   \centering
-	   \includegraphics[width=0.95\textwidth]{pdf/journal_content.pdf}
+	   \includegraphics[width=0.50\textwidth]{pdf/journal_content.pdf}
 	   \caption{日志文件格式图}
 	   \label{journal_content}
    \end{figure}
@@ -120,11 +118,10 @@
 		\end{figure}
 
 		数据的一次写入分为两部分：
-
 		将写操作写入日志；
 		将写操作应用到内存数据库中；
 		之前已经阐述过为何这样的操作可以优化写入性能，以及通过先写日志的方法能够保障用户的写入不丢失。
-
+		
 		其实仍然存在写入丢失的隐患。在写设置为非同步的情况下，在写完日志文件以后，
 		操作系统并不是直接将这些数据真正落到磁盘中，而是暂时留在操作系统缓存中，
 		因此当用户写入操作完成，操作系统还未来得及落盘的情况下，发生系统宕机，就会造成写丢失；
@@ -132,10 +129,8 @@
 
 		\item 写类型
 		
-		由于是键值型非关系型数据存储，存储系统对外提供的写入接口有：
-		（1）Put（2）Delete两种。这两种本质对应同一种操作，
+		由于是键值型非关系型数据存储，存储系统对外提供的写入接口有：Put和Delete两种。这两种本质对应同一种操作，
 		Delete操作同样会被转换成一个value为空的Put操作。
-	
 		除此以外，本文还提供了一个批量处理的工具Batch，用户可以依据Batch来完成批量更新操作，
 		且这些操作是原子性的。
 
@@ -169,21 +164,19 @@
 
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.95\textwidth]{pdf/internalkey.pdf}
+			\includegraphics[width=0.80\textwidth]{pdf/internalkey.pdf}
 			\caption{internalkey的数据结构}
-			\label{internalkey}
+			\label{internalkey_1}
 		\end{figure}
 
 
 		internalkey在用户key的基础上，尾部追加了8个字节，
-		用于存储（1）该操作对应的sequence number（2）该操作的类型。
-
-		其中，每一个操作都会被赋予一个sequence number。
+		用于存储该操作对应的sequence number和该操作的类型。
+		每一个操作都会被赋予一个sequence number。
 		该计时器是在存储系统内部维护，每进行一次操作就做一个累加。
 		由于在存储系统中，一次更新或者一次删除，采用的是append的方式，
 		并非直接更新原数据。因此对应同样一个key，会有多个版本的数据记录，
 		而最大的sequence number对应的数据记录就是最新的。
-
 		此外，存储系统的快照（snapshot）也是基于这个sequence number实现的，
 		即每一个sequence number代表着数据库的一个版本。
 
@@ -196,30 +189,30 @@
 
 		当前写操作
 
-		（1）第一个写入操作获取到写入锁；
+		（1）第一个写入操作获取到写入锁。
 		
 		（2）在当前写操作的数据量未超过合并上限，且有其它写操作pending的情况下，
-		将其它写操作的内容合并到自身；
+		将其它写操作的内容合并到自身。
 		
 		（3）若本次写操作的数据量超过上限，或者无其它pending的写操作了，
-		将所有内容统一写入日志文件，并写入到内存数据库中；
+		将所有内容统一写入日志文件，并写入到内存数据库中。
 		
-		（4）通知每一个被合并的写操作最终的写入结果，释放或移交写锁；
+		（4）通知每一个被合并的写操作最终的写入结果，释放或移交写锁。
 
 		其它写操作
 
-		（1）等待获取写锁或者被合并；
+		（1）等待获取写锁或者被合并。
 		
-		（2）若被合并，判断是否合并成功，若成功，则等待最终写入结果；
-		
+		（2）若被合并，判断是否合并成功，若成功，则等待最终写入结果。
+
 		（3）反之，则表明获取锁的写操作已经oversize了，
-		此时，该操作直接从上个占有锁的写操作中接过写锁进行写入；
+		此时，该操作直接从上个占有锁的写操作中接过写锁进行写入。
 		
-		（4）若未被合并，则继续等待写锁或者等待被合并；
+		（4）若未被合并，则继续等待写锁或者等待被合并。
 
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.95\textwidth]{pdf/write_merge.pdf}
+			\includegraphics[width=0.50\textwidth]{pdf/write_merge.pdf}
 			\caption{写合并的流程}
 			\label{write_merge}
 		\end{figure}
@@ -230,14 +223,10 @@
 		一个写操作中所有的内容会以一个日志中的一条记录，作为最小单位写入。
 
 		考虑以下两种异常情况：
-
-		（1）写日志未开始，或写日志完成一半，进程异常退出；
-		（2）写日志完成，进程异常退出；
-
+		写日志未开始，或写日志完成一半，进程异常退出；写日志完成，进程异常退出。
 		前者中可能存储一个写操作的部分写已经被记载到日志文件中，仍然有部分写未被记录，
 		这种情况下，当数据库重新启动恢复时，读到这条日志记录时，发现数据异常，直接丢弃或退出，
 		实现了写入的原子性保障。
-
 		后者，写日志已经完成，写入日志的数据未真正持久化，
 		存储系统启动恢复时通过redo日志实现数据写入，仍然保障了原子性。
 
@@ -247,21 +236,18 @@
 		\subsubsection{读数据的实现}
 
 	存储系统提供给用户两种进行读取数据的接口：
-
 	直接通过Get接口读取数据；
 	首先创建一个snapshot，基于该snapshot调用Get接口读取数据；
 	两者的本质是一样的，只不过第一种调用方式默认地以当前数据库的状态创建了一个snapshot，
 	并基于此snapshot进行读取。
 	snapshot（快照）就是数据库在某一个时刻的状态。
 	基于一个快照进行数据的读取，读到的内容不会因为后续数据的更改而改变。
-	
 	由于两种方式本质都是基于快照进行读取的，因此在介绍读操作之前，首先介绍快照。
 
 		\begin{enumerate}
 		\item snapshot（快照）
 		
 		快照代表着数据库某一个时刻的状态，在存储系统中，巧妙地用一个整型数来代表一个数据库状态。
-
 		在存储系统中，用户对同一个key的若干次修改（包括删除）是以维护多条数据项的方式进行存储的（直至进行compaction时才会合并成同一条记录），
 		每条数据项都会被赋予一个序列号，代表这条数据项的新旧状态。一条数据项的序列号越大，
 		表示其中代表的内容为最新值。
@@ -274,7 +260,7 @@
 
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.95\textwidth]{pdf/snapshot.pdf}
+			\includegraphics[width=0.45\textwidth]{pdf/snapshot.pdf}
 			\caption{快照数据示例图}
 			\label{snapshot}
 		\end{figure}
@@ -302,17 +288,14 @@
 		
 		（3）按低层至高层的顺序在level i层的sstable文件中查找指定的key，
 		若搜索到符合条件的数据项，结束查找，否则返回Not Found错误，表示数据库中不存在指定的数据；
-
-		注意存储系统在每一层sstable中查找数据时，都是按序依次查找sstable的。
-
+		
+		存储系统在每一层sstable中查找数据时，都是按序依次查找sstable的。
 		0层的文件比较特殊。由于0层的文件中可能存在key重合的情况，
 		因此在0层中，文件编号大的sstable优先查找。
 		理由是文件编号较大的sstable中存储的总是最新的数据。
-
 		非0层文件，一层中所有文件之间的key不重合，
 		因此存储系统可以借助sstable的元数据（一个文件中最小与最大的key值）进行快速定位，
 		每一层只需要查找一个sstable文件的内容。
-
 		在memory db或者sstable的查找过程中，需要根据指定的序列号拼接一个internalKey，
 		查找用户key一致，且seq号不大于指定seq的数据，
 		
@@ -384,15 +367,7 @@
 
 		\item 跳表的插入
 		
-		跳表的插入以查找为基础实现
-
-		% \begin{figure}[H]
-		% 	\centering
-		% 	\includegraphics[width=0.95\textwidth]{pdf/skiplist_insert}
-		% 	\caption{跳表的插入图}
-		% 	\label{skiplist_insert}
-		% \end{figure}
-
+		跳表的插入以查找为基础实现。
 		在查找的过程中，不断记录每一层的前任节点，如图中红色圆圈所表示的；
 		为新插入的节点随机产生层高（随机产生层高的算法较为简单，依赖最高层数和概率值p，可见下文中的代码实现）；
 		在合适的位置插入新节点，并依据查找时记录的前任节点信息，
@@ -414,7 +389,6 @@ func (p *DB) randHeight() (h int) {
 
 		跳表的删除操作较为简单，依赖查找过程找到该节点在整个跳表中的位置后，以链表删除的方式，
 		在每一层中，删除该节点的信息。
-
 		链表删除指：将前任节点的Next值替换为当前节点的Next值，并将当前节点所占的资源释放。
 
 		\item 跳表的迭代
@@ -445,7 +419,6 @@ func (p *DB) randHeight() (h int) {
 			由于内存数据库本质是一个kv集合，且所有的数据项都是依据key值排序的，因此键值的编码规则尤为关键。
 
 			内存数据库中，key称为internalKey，其由三部分组成：
-
 			用户定义的key：这个key值也就是原生的key值。
 			序列号：存储系统中，每一次写操作都有一个sequence number，标志着写入操作的先后顺序。
 			由于在存储系统中可能会有多条相同key的数据项同时存储在数据库中，
@@ -454,7 +427,7 @@ func (p *DB) randHeight() (h int) {
 
 			\begin{figure}[H]
 				\centering
-				\includegraphics[width=0.95\textwidth]{pdf/internalkey}
+				\includegraphics[width=0.55\textwidth]{pdf/internalkey}
 				\caption{内存数据库内部键图}
 				\label{internalkey}
 			\end{figure}
@@ -469,7 +442,7 @@ func (p *DB) randHeight() (h int) {
 			通过这样的比较规则，则所有的数据项首先按照用户key进行升序排列。
 			当用户key一致时，按照序列号进行降序排列，这样可以保证首先读到序列号大的数据项。
 
-
+			
 			\item 数据组织
 			
 			\begin{lstlisting}{caption=storage_db, label=code_radds_storage_db}
@@ -478,12 +451,6 @@ type DB struct {
 	rnd *rand.Rand
 	mu     sync.RWMutex
 	kvData []byte
-	// Node data:
-	// [0]         : KV offset
-	// [1]         : Key length
-	// [2]         : Value length
-	// [3]         : Height
-	// [3..height] : Next nodes
 	nodeData  []int
 	prevNode  [tMaxHeight]int
 	maxHeight int
@@ -534,15 +501,13 @@ type DB struct {
 
 					为了提高整体的读写效率，一个sstable文件按照固定大小进行块划分，默认每个块的大小为4KiB。
 					每个Block中，除了存储数据以外，还会存储两个额外的辅助字段：压缩类型和CRC校验。
-	
 					压缩类型说明了Block中存储的数据是否进行了数据压缩，
 					若是，采用了哪种算法进行压缩。存储系统中默认采用Snappy算法进行压缩。
-	
 					CRC校验码是循环冗余校验校验码，校验范围包括数据以及压缩类型。
 					
 					\begin{figure}[H]
 						\centering
-						\includegraphics[width=0.95\textwidth]{pdf/sstable_physic.pdf}
+						\includegraphics[width=0.80\textwidth]{pdf/sstable_physic.pdf}
 						\caption{sstable物理结构图}
 						\label{sstable_physic}
 					\end{figure}
@@ -558,7 +523,7 @@ type DB struct {
 	
 	\begin{figure}[H]
 		\centering
-		\includegraphics[width=0.95\textwidth]{pdf/sstable_logic.pdf}
+		\includegraphics[width=0.80\textwidth]{pdf/sstable_logic.pdf}
 		\caption{sstable逻辑结构图}
 		\label{sstable_logic}
 	\end{figure}
@@ -572,7 +537,7 @@ type DB struct {
 					
 					\begin{figure}[H]
 						\centering
-						\includegraphics[width=0.95\textwidth]{pdf/datablock.pdf}
+						\includegraphics[width=0.28\textwidth]{pdf/datablock.pdf}
 						\caption{sstable 数据块分布图}
 						\label{sstable_data_block}
 					\end{figure}
@@ -605,15 +570,12 @@ type DB struct {
 					\end{figure}
 	
 					一个entry分为5部分内容：
-	
 	与前一条记录key共享部分的长度；
 	与前一条记录key不共享部分的长度；
 	value长度；
 	与前一条记录key非共享的内容；
 	value内容。
-	
-	
-	
+
 	三组entry按上图的格式进行存储。
 	值得注意的是restart\_interval为2，
 	因此每隔两个entry都会有一条数据作为restart point点的数据项，
@@ -629,11 +591,11 @@ type DB struct {
 	存储系统首先根据filter block中的过滤数据判断指定的datablock中是否有需要查询的数据，
 	若判断不存在，则无需对这个datablock进行数据查找。
 	filter block存储的是data block数据的一些过滤信息。
-	这些过滤数据一般指代布隆过滤器的数据，用于加快查询的速度，
+	这些过滤数据一般指代布隆过滤器的数据，用于加快查询的速度。
 	
 	\begin{figure}[H]
 		\centering
-		\includegraphics[width=0.95\textwidth]{pdf/filterblock_format.pdf}
+		\includegraphics[width=0.35\textwidth]{pdf/filterblock_format.pdf}
 		\caption{sstable 过滤块格式图}
 		\label{sstable_filterblock_format}
 	\end{figure}
@@ -663,7 +625,6 @@ meta index block只存储一条记录：
 	
 	与meta index block类似，index block用来存储所有data block的相关索引信息。
 indexblock包含若干条记录，每一条记录代表一个data block的索引信息。
-
 一条索引包括以下内容：
 data block i 中最大的key值；
 该data block起始地址在sstable中的偏移量；
@@ -671,22 +632,20 @@ data block i 中最大的key值；
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{pdf/indexblock_format.pdf}
+	\includegraphics[width=0.79\textwidth]{pdf/indexblock_format.pdf}
 	\caption{sstable 序号块格式图}
 	\label{sstable_indexblock_format}
 \end{figure}
 
 其中，data block i最大的key值还是index block中该条记录的key值。
-
-如此设计的目的是，依次比较index block中记录信息的key值即可实现快速定位目标数据在哪个data block中。
+依次比较index block中记录信息的key值即可实现快速定位目标数据在哪个data block中。
 
 \item footer结构
 footer大小固定，为48字节，用来存储meta index block与index block在sstable中的索引信息，
-另外尾部还会存储一个magic word，内容为："http://code.google.com/p/存储系统/"
-字符串sha1哈希的前8个字节。
+另外尾部还会存储一个magic word。
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{pdf/footer_format.pdf}
+	\includegraphics[width=0.45\textwidth]{pdf/footer_format.pdf}
 	\caption{sstable 底部格式图}
 	\label{sstable_footer_format}
 \end{figure}
@@ -698,20 +657,17 @@ footer大小固定，为48字节，用来存储meta index block与index block在
 				\item sstable读写操作
 				
 				在介绍完sstable文件具体的组织方式之后，本文再来介绍一下相关的读写操作。
-				为了便于理解，将首先介绍写操作。
+				将首先介绍写操作。
 
 				\begin{enumerate}
 					\item 写操作
 					
 					sstable的写操作通常发生在：
-
 memory db将内容持久化到磁盘文件中时，会创建一个sstable进行写入；
 存储系统后台进行文件compaction时，会将若干个sstable文件的内容重新组织，输出到若干个新的sstable文件中；
 对sstable进行写操作的数据结构为tWriter，具体定义如下：
 
 \begin{lstlisting}[caption=tWriter , label=code_radds_storage_tWriter]
-// tWriter wraps the table writer. It keep track of file descriptor
-// and added key range.
 type tWriter struct {
 	t *tOps
 	
@@ -732,15 +688,13 @@ type tWriter struct {
 
 该迭代器可以是一个内存数据库的迭代器，写入情景对应着上述的第一种情况；
 该迭代器也可以是一个sstable文件的迭代器，写入情景对应着上述的第二种情况；
-sstable的元数据包括：（1）文件编码（2）大小（3）最大key值（4）最小key值
-故，理解tableWriter的Append函数是理解整个写入过程的关键。
+sstable的元数据包括：文件编码，大小，最大key值，最小key值。
 
 
 			\begin{enumerate}
 				\item tableWriter
-				
-				在介绍append函数之前，首先介绍一下tableWriter这个数据结构。主要的定义如下：
-\begin{lstlisting}[caption=Writer , label=code_radds_storage_Writer]
+
+\begin{lstlisting}[caption=tableWriter , label=code_radds_storage_Writer]
 // Writer is a table writer.
 type Writer struct {
 	writer io.Writer
@@ -756,16 +710,13 @@ type Writer struct {
 }				
 \end{lstlisting}
 
-其中blockWriter与filterWriter表示底层的两种不同的writer，blockWriter负责写入data数据的写入，而filterWriter负责写入过滤数据。
-
-pendingBH记录了上一个dataBlock的索引信息，当下一个dataBlock的数据开始写入时，将该索引信息写入indexBlock中。
+			其中blockWriter与filterWriter表示底层的两种不同的writer，blockWriter负责写入data数据的写入，而filterWriter负责写入过滤数据。
+			pendingBH记录了上一个dataBlock的索引信息，当下一个dataBlock的数据开始写入时，将该索引信息写入indexBlock中。
 				\item Append 
 				
 				一次append函数的主要逻辑如下：
-若本次写入为新dataBlock的第一次写入，则将上一个dataBlock的索引信息写入；
-将keyvalue数据写入datablock;
-将过滤信息写入filterBlock；
-若datablock中的数据超过预定上限，则标志着本次datablock写入结束，将内容刷新到磁盘文件中；
+若本次写入为新dataBlock的第一次写入，则将上一个dataBlock的索引信息写入；将keyvalue数据写入datablock;将过滤信息写入filterBlock；
+若datablock中的数据超过预定上限，则标志着本次datablock写入结束，将内容刷新到磁盘文件中。
 
 \begin{lstlisting}[caption=Append , label=code_radds_storage_Append]
 func (w *Writer) Append(key, value []byte) error {
@@ -794,7 +745,7 @@ func (w *Writer) Append(key, value []byte) error {
 
 \item filterBlock.append
 
-该函数将kv数据项的key值加入到过滤信息中，具体可见《存储系统源码解析 - 布隆过滤器》
+该函数将kv数据项的key值加入到过滤信息中，具体可见《布隆过滤器》。
 
 \item finishBlock
 
@@ -828,7 +779,7 @@ func (w *Writer) Append(key, value []byte) error {
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{pdf/sstable_read_procedure.pdf}
+	\includegraphics[width=0.45\textwidth]{pdf/sstable_read_procedure.pdf}
 	\caption{sstable读过程过程图}
 	\label{sstable_read_procedure}
 \end{figure}
@@ -1011,7 +962,7 @@ LRU中则根据Least Recently Used原则进行数据新旧信息的维护，当�
 				
 				\begin{figure}[H]
 					\centering
-					\includegraphics[width=0.95\textwidth]{pdf/cache_expend.pdf}
+					\includegraphics[width=0.55\textwidth]{pdf/cache_expend.pdf}
 					\caption{sstable 缓存扩展图}
 					\label{sstable_cache_expand}
 				\end{figure}

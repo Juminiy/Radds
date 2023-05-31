@@ -22,14 +22,18 @@
    便会转换成一个不可写的memory db，与此同时，与之对应的日志文件也变成一份frozen log。
 
    而新生成的immutable memory db则会由后台的minor compaction进程将其转换成一个sstable文件进行持久化，
-   持久化完成，与之对应的frozen log被删除。
+   持久化完成，与之对应的frozen log被删除。如果frozen log被存档，但是另一个进程正在写入新数据，那么新数据
+   会被当作缓存数据写入缓存，这部分的缓存是内存数据库，写入内存数据库后会通过日志定期刷新到所定位的日志文件，
+   从而成为新的frozen log，这样避免了frozen log被丢弃的风险，增加了容错性和可靠性，这是一种模仿mysql日志
+   同步数据的解决方案，并不是独创性的，这部分的逻辑就是利用更多层次的缓存减少错误，增加可靠性，这也是日志复制的核心内容。
+   关于新的日志复制如何使用全量和增量会在下一章节详细介绍。
 
    \begin{enumerate}
    \item 日志结构
 
    \begin{figure}[H]
 	   \centering
-	   \includegraphics[width=0.95\textwidth]{pdf/journal.pdf}
+	   \includegraphics[width=0.80\textwidth]{pdf/journal.pdf}
 	   \caption{日志文件存储结构图}
 	   \label{journal}
    \end{figure}
@@ -50,10 +54,7 @@
    
    \item 日志内容
    
-   日志的内容为写入的batch编码后的信息。
-
-   具体的格式为：
-
+   日志的内容为写入的batch编码后的信息，具体的格式为：
    \begin{figure}[H]
 	   \centering
 	   \includegraphics[width=0.95\textwidth]{pdf/journal_content.pdf}
@@ -62,20 +63,16 @@
    \end{figure}
 
    一条日志记录的内容包含：Header和Data
-   其中Header中有（1）当前db的sequence number（2）本次日志记录中所包含的put/del操作的个数。
-   
-   紧接着写入所有batch编码后的内容。
+   其中Header中有当前db的sequence number和本次日志记录中所包含的put/del操作的个数，紧接着写入所有batch编码后的内容。
    \item 日志文件写 
    
-   % \begin{figure}[h]
-   % 	\centering
-   % 	\includegraphics[width=0.95\textwidth]{other/pic_pdf.pdf}
-   % 	\caption{日志文件写流程图}
-   % 	\label{journal_write}
-   % \end{figure}
+   \begin{figure}[h]
+   	\centering
+   	\includegraphics[width=0.50\textwidth]{pdf/journal_write.pdf}
+   	\caption{日志文件写流程图}
+   	\label{journal_write}
+   \end{figure}
 
-   % \includepdfmerge{./other/pic_pdf.pdf,2}
-   
    日志写入流程较为简单，在存储系统内部，实现了一个journal的writer。
    首先调用Next函数获取一个singleWriter，
    这个singleWriter的作用就是写入一条journal记录。
@@ -84,25 +81,22 @@
    在写入的过程中，不断判断writer中buffer的大小，若超过32KiB，
    将chunk开始到现在做为一个完整的chunk，为其计算header之后将整个chunk写入文件。
    与此同时reset buffer，开始新的chunk的写入。
-
    若一条journal记录较大，则可能会分成几个chunk存储在若干个block中。
 
    \item 日志文件读 
    
    同样，日志读取也较为简单。为了避免频繁的IO读取，每次从文件中读取数据时，
    按block（32KiB）进行块读取。
-
    每次读取一条日志记录，reader调用Next函数返回一个singleReader。
    singleReader每次调用Read函数就返回一个chunk的数据。每次读取一个chunk，
    都会检查这批数据的校验码、数据类型、数据长度等信息是否正确，若不正确，
    且用户要求严格的正确性，则返回错误，否则丢弃整个chunk的数据。
-
-   循环调用singleReader的read函数，直至读取到一个类型为Last的chunk，
+	循环调用singleReader的read函数，直至读取到一个类型为Last的chunk，
    表示整条日志记录都读取完毕，返回。
 
    \begin{figure}[H]
 	   \centering
-	   \includegraphics[width=0.95\textwidth]{pdf/journal_read.pdf}
+	   \includegraphics[width=0.50\textwidth]{pdf/journal_read.pdf}
 	   \caption{日志文件读流程图}
 	   \label{journal_read}
    \end{figure}
@@ -461,7 +455,7 @@ func (p *DB) randHeight() (h int) {
 			\begin{figure}[H]
 				\centering
 				\includegraphics[width=0.95\textwidth]{pdf/internalkey}
-				\caption{内存数据库内部键}
+				\caption{内存数据库内部键图}
 				\label{internalkey}
 			\end{figure}
 
@@ -549,7 +543,7 @@ type DB struct {
 					\begin{figure}[H]
 						\centering
 						\includegraphics[width=0.95\textwidth]{pdf/sstable_physic.pdf}
-						\caption{sstable物理结构}
+						\caption{sstable物理结构图}
 						\label{sstable_physic}
 					\end{figure}
 					
@@ -565,7 +559,7 @@ type DB struct {
 	\begin{figure}[H]
 		\centering
 		\includegraphics[width=0.95\textwidth]{pdf/sstable_logic.pdf}
-		\caption{sstable逻辑结构}
+		\caption{sstable逻辑结构图}
 		\label{sstable_logic}
 	\end{figure}
 	
@@ -579,7 +573,7 @@ type DB struct {
 					\begin{figure}[H]
 						\centering
 						\includegraphics[width=0.95\textwidth]{pdf/datablock.pdf}
-						\caption{sstable data block}
+						\caption{sstable 数据块分布图}
 						\label{sstable_data_block}
 					\end{figure}
 					
@@ -606,7 +600,7 @@ type DB struct {
 					\begin{figure}[H]
 						\centering
 						\includegraphics[width=0.95\textwidth]{pdf/entry_format.pdf}
-						\caption{sstable entry format}
+						\caption{sstable 条目格式图}
 						\label{sstable_entry_format}
 					\end{figure}
 	
@@ -640,7 +634,7 @@ type DB struct {
 	\begin{figure}[H]
 		\centering
 		\includegraphics[width=0.95\textwidth]{pdf/filterblock_format.pdf}
-		\caption{sstable filterblock format}
+		\caption{sstable 过滤块格式图}
 		\label{sstable_filterblock_format}
 	\end{figure}
 
@@ -678,7 +672,7 @@ data block i 中最大的key值；
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/indexblock_format.pdf}
-	\caption{sstable indexblock format}
+	\caption{sstable 序号块格式图}
 	\label{sstable_indexblock_format}
 \end{figure}
 
@@ -693,7 +687,7 @@ footer大小固定，为48字节，用来存储meta index block与index block在
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/footer_format.pdf}
-	\caption{sstable footer format}
+	\caption{sstable 底部格式图}
 	\label{sstable_footer_format}
 \end{figure}
 
@@ -835,7 +829,7 @@ func (w *Writer) Append(key, value []byte) error {
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/sstable_read_procedure.pdf}
-	\caption{sstable read procedure}
+	\caption{sstable读过程过程图}
 	\label{sstable_read_procedure}
 \end{figure}
 
@@ -864,7 +858,7 @@ data block中的数据；
 			\begin{figure}[H]
 				\centering
 				\includegraphics[width=0.95\textwidth]{pdf/sstable_metadata.pdf}
-				\caption{sstable metadata}
+				\caption{sstable 元数据结构图}
 				\label{sstable_metadata}
 			\end{figure}
 			由于sstable复杂的文件组织格式，因此在打开文件后，需要读取必要的元数据，才能访问sstable中的数据。
@@ -886,7 +880,7 @@ data block中的数据；
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/indexblock.pdf}
-	\caption{sstable index block}
+	\caption{sstable 序号块示意图}
 	\label{sstable_index_block}
 \end{figure}
 
@@ -902,7 +896,7 @@ index block是由一系列的键值对组成，每一个键值对表示一个dat
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/index_block_find.pdf}
-	\caption{sstable index block find}
+	\caption{sstable 序号块查找图}
 	\label{sstable_index_block_find}
 \end{figure}
 
@@ -921,7 +915,7 @@ index block是由一系列的键值对组成，每一个键值对表示一个dat
 	\begin{figure}[H]
 		\centering
 		\includegraphics[width=0.95\textwidth]{pdf/datablock_format.pdf}
-		\caption{sstable datablock format}
+		\caption{sstable 数据块结构格式图}
 		\label{sstable_datablock_format}
 	\end{figure}
 	在data block中查找目标数据项是一个简单的迭代遍历过程。虽然data block中所有数据项都是按序排序的，但是作者并没有采用“二分查找”来提高查找的效率，而是使用了更大的查找单元进行快速定位。
@@ -982,7 +976,7 @@ sstable文件为只读的，因此cache中的数据永远于sstable文件中的�
 			\begin{figure}[H]
 				\centering
 				\includegraphics[width=0.95\textwidth]{pdf/cache_arch.pdf}
-				\caption{sstable cache arch}
+				\caption{sstable 缓存架构图}
 				\label{sstable_cache_arch}
 			\end{figure}
 
@@ -1005,7 +999,7 @@ LRU中则根据Least Recently Used原则进行数据新旧信息的维护，当�
 				\begin{figure}[H]
 					\centering
 					\includegraphics[width=0.95\textwidth]{pdf/cache_select.pdf}
-					\caption{sstable cache select}
+					\caption{sstable缓存查找图}
 					\label{sstable_cache_select}
 				\end{figure}
 				该哈希表的散列与普通的哈希表一致，都是借助散列函数，将用户需要查找、更改的数据散列到某一个哈希桶中，并在哈希桶中进行操作。
@@ -1018,7 +1012,7 @@ LRU中则根据Least Recently Used原则进行数据新旧信息的维护，当�
 				\begin{figure}[H]
 					\centering
 					\includegraphics[width=0.95\textwidth]{pdf/cache_expend.pdf}
-					\caption{sstable cache expand}
+					\caption{sstable 缓存扩展图}
 					\label{sstable_cache_expand}
 				\end{figure}
 				当cache中维护的数据量太大时，会发生哈希表扩张的情况。以下两种情况是为“cache中维护的数据量过大”：
@@ -1114,7 +1108,7 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 			\begin{figure}[H]
 				\centering
 				\includegraphics[width=0.95\textwidth]{pdf/bloom1.pdf}
-				\caption{sstable bloom3}
+				\caption{sstable 布隆过滤器示意图1}
 				\label{sstable_bloom3}
 			\end{figure}
 			
@@ -1124,7 +1118,7 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/bloom2.pdf}
-	\caption{sstable bloom2}
+	\caption{sstable 布隆过滤器示意图2}
 	\label{sstable_bloom2}
 \end{figure}
 
@@ -1133,7 +1127,7 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/bloom3.pdf}
-	\caption{sstable bloom3}
+	\caption{sstable 布隆过滤器示意图3}
 	\label{sstable_bloom3}
 \end{figure}
 
@@ -1324,7 +1318,7 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 				\begin{figure}[H]
 					\centering
 					\includegraphics[width=0.95\textwidth]{pdf/minor_compaction.pdf}
-					\caption{sstable minor compaction}
+					\caption{sstable 结构镜像归并}
 					\label{sstable_minor_compaction}
 				\end{figure}
 				
@@ -1338,7 +1332,7 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 				\begin{figure}[H]
 					\centering
 					\includegraphics[width=0.95\textwidth]{pdf/major_compaction.pdf}
-					\caption{sstable major compaction}
+					\caption{sstable 结构主归并}
 					\label{sstable_major_compaction}
 				\end{figure}
 				
@@ -1412,7 +1406,7 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 					\begin{figure}[H]
 						\centering
 						\includegraphics[width=0.95\textwidth]{pdf/compaction_expand.pdf}
-						\caption{sstable compaction expand}
+						\caption{sstable 归并扩展图}
 						\label{sstable_compaction_expand}
 					\end{figure}
 					\item 多路合并：
@@ -1423,7 +1417,7 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 					\begin{figure}[H]
 						\centering
 						\includegraphics[width=0.95\textwidth]{pdf/table_merge.pdf}
-						\caption{sstable table merge}
+						\caption{sstable 表合并图}
 						\label{sstable_table_merge}
 					\end{figure}
 					注意在整理的过程中，需要将冗余的数据进行清理，即同一条数据的多个版本信息，只保留最新的那一份。
@@ -1476,8 +1470,8 @@ manifest文件专用于记录版本信息。存储系统采用了增量式的存
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/manifest.pdf}
-	\caption{sstable manifest}
-	\label{sstable_manifest}
+	\caption{元数据图}
+	\label{manifest}
 \end{figure}
 			
 
@@ -1500,7 +1494,7 @@ compaction记录信息。
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/version_update.pdf}
-	\caption{sstable version update}
+	\caption{版本更新示意图}
 	\label{sstable_version_update}
 \end{figure}
 
@@ -1526,7 +1520,7 @@ compaction记录信息。
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/version_recover.pdf}
-	\caption{sstable version recover}
+	\caption{版本复原示意图}
 	\label{sstable_version_recover}
 \end{figure}
 
@@ -1566,3 +1560,233 @@ compaction生成的文件只有等合并完成后才会写入数据库元数据�
 采用引用计数来控制删除行为。当compaction完成后试图去删除某个sstable文件，会根据该文件的引用计数作适当的删除延迟，即引用计数不为0时，需要等待至该文件的计数为0才真正进行删除。
 
 \end{enumerate}
+
+
+\subsection{共识层详细设计与实现}
+		\subsubsection{共识层角色和状态的实现}
+			\begin{enumerate}
+				\item Cluster 
+				 
+					raft 配置中的一组对等节点，几个节点组成的一个集合。
+
+				\item Peer
+				
+					参与共识协议的节点。 peer 可能处于以下状态之一：follower、candidate 或 leader。
+
+				\item Log
+					
+					完整的日志条目集。
+				\item Log Entry 
+				
+					日志中的条目。 每个条目都有一个索引，用于相对于其它日志条目对其进行排序。
+				\item Committed 
+				
+					如果将日志条目应用于状态机是安全的，则该日志条目被视为已提交。 
+					一旦创建条目的领导者已将其复制到大多数对等点，就会提交日志条目。 
+					一旦条目被持久化，对等节点就成功地复制了条目。
+				\item Applied 
+					
+					应用于状态机 (FSM) 的日志条目。
+				\item Term 
+
+					raft 将时间划分为任意长度的项。 
+					任期用连续的整数编号。 
+					每个任期都以选举开始，其中一名或多名候选人试图成为领导者。 
+					如果选举以分裂投票结束，任期将以无领导者结束。
+				\item FSM 
+					
+					有限状态机，存储集群状态
+				\item Client
+
+					客户端输入kv键值对，使用集群的客户端
+			\end{enumerate}
+
+		
+        \subsubsection{共识层角色操作的实现}
+		\begin{enumerate}
+			\item Leader Write
+			大多数写操作必须在领导者上执行。
+			
+			\begin{enumerate}
+			
+				\item RequestConfigChange 
+				
+				更新 raft 对等节点的配置
+			
+				\item Apply 
+				
+				将日志条目应用于大多数对等点和 FSM 上的日志。 有关更多详细信息，请参阅 raft 申请。
+
+				\item Barrier 
+				
+				不修改FSM的特殊Apply，用于等待之前的日志被应用			
+				
+				\item LeadershipTransfer 
+				
+				停止接受客户端请求，并告诉不同的节点开始领导选举
+
+				\item Restore (快照) 
+			
+				用快照的内容覆盖集群状态（不包括集群配置）
+				
+				\item VerifyLeader 
+				
+				向所有投票者发送心跳以确认对等点仍然是领导者				
+
+			\end{enumerate}
+
+
+			\item Follower Write
+			
+
+			BootstrapCluster 在本地日志存储集群配置
+
+			\item Read
+			可以在任何状态的对等点上执行读取操作。
+			
+			\begin{enumerate}
+			
+				\item AppliedIndex	
+				
+				获取应用于 FSM 的最后一个日志条目的索引
+			
+				\item GetConfiguration
+				
+				返回最新的集群配置
+				
+				\item LastContact 
+				
+				获取此对等方最后一次与领导者联系的时间
+			
+				\item LastIndex	
+				
+				获取最新存储的日志条目的索引
+				
+				\item Leader 
+				
+				获取当前领导者的对等方的地址
+			
+				\item Snapshot 
+				
+				将 FSM 的当前状态快照到一个文件中
+			
+				\item State
+				
+				返回对等体的状态
+			
+				\item Stats 
+				
+				返回一些关于对等点和集群的统计信息
+
+			\end{enumerate}
+
+		\end{enumerate}
+
+		\subsubsection{共识层多线程的实现}
+		Raft 使用以下线程来处理操作。 线程的名称以粗体显示，后面是对线程处理的操作的简短描述。 主线程负责处理许多操作。
+			\begin{enumerate}
+				\item run (main thread)
+				基于对等状态的不同行为
+				
+				\begin{enumerate}
+					
+					\item follower
+					\begin{enumerate}
+					\item processRPC (from rpcCh)
+						\begin{enumerate}
+						
+							\item AppendEntries
+							
+							\item RequestVote
+							
+							\item InstallSnapshot
+							
+							\item TimeoutNow
+						
+						\end{enumerate}
+					\item liveBootstrap (from bootstrapCh)
+					\item periodic heartbeatTimer (HeartbeatTimeout)
+					\end{enumerate}
+					\item candidate
+						被调用时自己进行一轮选举
+					
+					\begin{enumerate}
+					
+						\item processRPC (from rpcCh)
+							与follower相同的操作
+
+						\item acceptVote (from askPeerForVote)
+					
+					\end{enumerate}
+					
+					\item leader 
+						
+					首先开始复制到所有对等点，并应用 Noop 日志以确保新领导者已提交到提交索引
+						\begin{enumerate}
+						\item processRPC (from rpcCh)	
+							
+						与跟随者相同，但是本文实际上并不期望收到除 RequestVote 之外的任何 RPC
+
+						\item leadershipTransfer (from leadershipTransferCh) 
+						
+						\item commit (from commitCh) 
+						
+						\item verifyLeader (from verifyCh) 
+						
+						\item user restore snapshot (from userRestoreCh) 
+						
+						\item changeConfig (from configurationChangeCh) 
+						
+						\item dispatchLogs (from applyCh) 
+						
+						通过将日志持久化到磁盘并通知复制 goroutines 复制新日志来处理客户端 Raft.Apply 请求
+						
+						\item checkLease (periodically LeaseTimeout) 
+						
+					\end{enumerate}
+				\end{enumerate}
+				
+				
+				\item runFSM 
+				
+				具有对 FSM 的独占访问权限，所有读写操作都必须向该线程发送消息。 命令：
+从 fsmMutateCh、processLogs、leaderLoop（leader）或 appendEntries RPC（follower/candidate）向 FSM 应用日志
+从 fsmMutateCh、从 restoreUserSnapshot（leader）或 installSnapshot RPC（follower/candidate）恢复快照到 FSM
+捕获快照，来自 fsmSnapshotCh，来自 takeSnapshot（runSnapshot 线程）
+
+				\item runSnapshot
+				
+				处理拍摄快照的较慢部分。 根据 FSM.Snapshot 操作捕获的指针，此线程通过调用 FSMSnapshot.Persist 来保留快照。 还调用 compactLogs 来删除旧日志。
+定期 (SnapshotInterval) takeSnapshot 进行日志压缩
+用户快照，来自userSnapshotCh，takeSnapshot返回给用户
+				
+				\item askPeerForVote (candidate only)
+				
+				短暂的 goroutine，同步发送 RequestVote RPC 给所有投票点，并等待响应。 每个投票节点一个 goroutine。
+				
+				\item replicate (leader only)
+				
+				将日志条目 AppendEntry RPC 同步发送到所有对等点的长时间运行的 goroutine。 还启动心跳线程，可能还有 pipelineDecode 线程。 AppendEntry 失败时运行 sendLatestSnapshot。
+				
+				\begin{enumerate}
+				
+					\item heartbeat (leader only) 
+					
+					长时间运行的 goroutine，同步发送心跳 AppendEntry RPCs 给所有对等点。
+
+					\item pipelineDecode (leader only)
+										
+				\end{enumerate}
+
+			\end{enumerate}
+
+  	% \subsection{客户端层详细设计与实现}
+	
+	% 	\subsubsection{CLI 命令行客户端的实现}
+		
+		
+
+
+	% \subsection{本章小结}
+    
+ \clearpage

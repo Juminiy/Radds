@@ -19,8 +19,8 @@
 \usepackage[square, numbers, sort, comma]{natbib}
 \usepackage{lmodern}
 \usepackage{indentfirst}
-\usepackage{pdfpages}
- 
+\usepackage{pdfpages} 
+
 % 参考文献行间距
 \setlength{\bibsep}{-1pt}
 
@@ -93,9 +93,6 @@
 \crefname{figure}{图}{图}
 \Crefname{figure}{图}{图}
 
-\include{sections/cover}
-
-\include{sections/solemnStatement}
 
 \include{sections/abstract}
 
@@ -106,9 +103,9 @@
 \include{sections/backgroundKnowledge}
 % \include{sections/demandAnalysis}
 \include{sections/integratedDesign}
-\include{sections/integratedDesign2}
+% \include{sections/integratedDesign2}
 \include{sections/detailedDesign}
-\include{sections/detailedDesign2}
+% \include{sections/detailedDesign2}
 \include{sections/deployTest}
 \include{sections/conclusion}
 \include{sections/thanks}
@@ -121,6 +118,7 @@
 \addcontentsline{toc}{section}{参考文献}
 \bibliography{citation}
 % \setlength{\bibsep}{0pt plus 0.5em}
+\include{sections/citation}
 
 \include{sections/appendix}
 \end{document}

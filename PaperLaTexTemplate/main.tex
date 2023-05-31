@@ -21,6 +21,10 @@
 \usepackage{indentfirst}
 \usepackage{pdfpages} 
 
+% 页码底部居中
+\usepackage{fancyhdr}
+
+
 % 参考文献行间距
 \setlength{\bibsep}{-1pt}
 
@@ -58,12 +62,17 @@
 }
 
 \chead{\zihao{-3}\heiti 东北大学秦皇岛分校毕业设计（论文）} %\bfseries 不用加粗
-\rhead{\zihao{-4}第{\thepage}页}
+\rhead{\zihao{-4}}
 \lfoot{}
 \cfoot{}
 \rfoot{}
 \renewcommand{\headrulewidth}{0.4pt}
 %%%页眉
+
+
+\pagestyle{fancy}
+% \fancyhf{}
+\fancyfoot[C]{\thepage}
 
 %% lstlisting 样式
 \def\inline{\lstinline[basicstyle=\ttfamily,breaklines=true]}

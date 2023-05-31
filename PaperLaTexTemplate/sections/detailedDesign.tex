@@ -187,28 +187,28 @@
 		为了在写入进程较多的情况下，减少日志文件的小写入，增加整体的写入性能，
 		存储系统将一些“小写入”合并成一个“大写入”。
 
-		当前写操作
+		（1）当前写操作
 
-		（1）第一个写入操作获取到写入锁。
+			\ \ \ \ 1）第一个写入操作获取到写入锁。
 		
-		（2）在当前写操作的数据量未超过合并上限，且有其它写操作pending的情况下，
+			\ \ \ \ 2）在当前写操作的数据量未超过合并上限，且有其它写操作pending的情况下，
 		将其它写操作的内容合并到自身。
 		
-		（3）若本次写操作的数据量超过上限，或者无其它pending的写操作了，
+		\ \ \ \ 3）若本次写操作的数据量超过上限，或者无其它pending的写操作了，
 		将所有内容统一写入日志文件，并写入到内存数据库中。
 		
-		（4）通知每一个被合并的写操作最终的写入结果，释放或移交写锁。
+		\ \ \ \ 4）通知每一个被合并的写操作最终的写入结果，释放或移交写锁。
 
-		其它写操作
+		（2）其它写操作
 
-		（1）等待获取写锁或者被合并。
+		\ \ \ \ 1）等待获取写锁或者被合并。
 		
-		（2）若被合并，判断是否合并成功，若成功，则等待最终写入结果。
+		\ \ \ \ 2）若被合并，判断是否合并成功，若成功，则等待最终写入结果。
 
-		（3）反之，则表明获取锁的写操作已经oversize了，
+		\ \ \ \ 3）反之，则表明获取锁的写操作已经oversize了，
 		此时，该操作直接从上个占有锁的写操作中接过写锁进行写入。
 		
-		（4）若未被合并，则继续等待写锁或者等待被合并。
+		\ \ \ \ 4）若未被合并，则继续等待写锁或者等待被合并。
 
 		\begin{figure}[H]
 			\centering
@@ -282,12 +282,12 @@
 
 		存储系统读取分为三步：
 
-		（1）在memory db中查找指定的key，若搜索到符合条件的数据项，结束查找；
+		（1）在memory db中查找指定的key，若搜索到符合条件的数据项，结束查找。
 
-		（2）在冻结的memory db中查找指定的key，若搜索到符合条件的数据项，结束查找；
+		（2）在冻结的memory db中查找指定的key，若搜索到符合条件的数据项，结束查找。
 		
 		（3）按低层至高层的顺序在level i层的sstable文件中查找指定的key，
-		若搜索到符合条件的数据项，结束查找，否则返回Not Found错误，表示数据库中不存在指定的数据；
+		若搜索到符合条件的数据项，结束查找，否则返回Not Found错误，表示数据库中不存在指定的数据。
 		
 		存储系统在每一层sstable中查找数据时，都是按序依次查找sstable的。
 		0层的文件比较特殊。由于0层的文件中可能存在key重合的情况，
@@ -297,14 +297,14 @@
 		因此存储系统可以借助sstable的元数据（一个文件中最小与最大的key值）进行快速定位，
 		每一层只需要查找一个sstable文件的内容。
 		在memory db或者sstable的查找过程中，需要根据指定的序列号拼接一个internalKey，
-		查找用户key一致，且seq号不大于指定seq的数据，
+		查找用户key一致，且seq号不大于指定seq的数据。
 		
 		\end{enumerate}
 	
 		\subsubsection{跳表数据结构的实现}
 
 		内存数据库用来维护有序的key-value对，
-		其底层是利用跳表实现，绝大多数操作（读／写）的时间复杂度均为O(log n)，
+		其底层是利用跳表实现，绝大多数操作（读或写）的时间复杂度均为O(log n)，
 		有着与平衡树相媲美的操作效率，但是从实现的角度来说简单许多，
 
 		\begin{enumerate}
@@ -445,7 +445,16 @@ func (p *DB) randHeight() (h int) {
 			
 			\item 数据组织
 			
-			\begin{lstlisting}{caption=storage_db, label=code_radds_storage_db}
+			
+			其中kvData用来存储每一条数据项的key-value数据，nodeData用来存储每个跳表节点的链接信息。
+			nodeData中，每个跳表节点占用一段连续的存储空间，每一个字节分别用来存储特定的跳表节点信息。
+			第一个字节用来存储本节点key-value数据在kvData中对应的偏移量。
+			第二个字节用来存储本节点key值长度。
+			第三个字节用来存储本节点value值长度。
+			第四个字节用来存储本节点的层高。
+			第五个字节开始，用来存储每一层对应的下一个节点的索引值。
+			如下代码描述了数据的具体组织形式。
+						\begin{lstlisting}{caption=storage_db, label=code_radds_storage_db}
 type DB struct {
 	cmp comparer.BasicComparer
 	rnd *rand.Rand
@@ -458,16 +467,6 @@ type DB struct {
 	kvSize    int
 }
 		\end{lstlisting}
-				
-			
-			其中kvData用来存储每一条数据项的key-value数据，nodeData用来存储每个跳表节点的链接信息。
-			nodeData中，每个跳表节点占用一段连续的存储空间，每一个字节分别用来存储特定的跳表节点信息。
-			第一个字节用来存储本节点key-value数据在kvData中对应的偏移量。
-			第二个字节用来存储本节点key值长度。
-			第三个字节用来存储本节点value值长度。
-			第四个字节用来存储本节点的层高。
-			第五个字节开始，用来存储每一层对应的下一个节点的索引值。
-
 		\item 基础操作
 		
 		Put、Get、Delete、Iterator等操作均依赖于底层的跳表的基本操作实现，不再赘述。
@@ -520,7 +519,8 @@ type DB struct {
 	meta Index block: 用来存储filter block的索引信息（索引信息指在该sstable文件中的偏移量以及数据长度）；
 	index block：index block中用来存储每个data block的索引信息；
 	footer: 用来存储meta index block及index block的索引信息。
-	
+	每个区块都会有自己的压缩信息以及CRC校验码信息，字节的校验码会存在于自己的区块，不会影响到其他的区块，设计的
+	目的去就是为了避免冗余数据的写入会导致到规模的放大以至于存储过多无用的数据，自己单独校验的成本要比混合校验成本低。
 	\begin{figure}[H]
 		\centering
 		\includegraphics[width=0.80\textwidth]{pdf/sstable_logic.pdf}
@@ -528,7 +528,7 @@ type DB struct {
 		\label{sstable_logic}
 	\end{figure}
 	
-				每个区块都会有自己的压缩信息以及CRC校验码信息。
+				
 	
 					\item datablock结构
 	
@@ -537,7 +537,7 @@ type DB struct {
 					
 					\begin{figure}[H]
 						\centering
-						\includegraphics[width=0.28\textwidth]{pdf/datablock.pdf}
+						\includegraphics[width=0.35\textwidth]{pdf/datablock.pdf}
 						\caption{sstable 数据块分布图}
 						\label{sstable_data_block}
 					\end{figure}
@@ -632,7 +632,7 @@ data block i 中最大的key值；
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.79\textwidth]{pdf/indexblock_format.pdf}
+	\includegraphics[width=0.64\textwidth]{pdf/indexblock_format.pdf}
 	\caption{sstable 序号块格式图}
 	\label{sstable_indexblock_format}
 \end{figure}
@@ -681,18 +681,16 @@ type tWriter struct {
 
 主要包括了一个sstable的文件描述符，底层文件系统的writer，
 该sstable中所有数据项最大最小的key值以及一个内嵌的tableWriter。
-
 一次sstable的写入为一次不断利用迭代器读取需要写入的数据，
 并不断调用tableWriter的Append函数，
 直至所有有效数据读取完毕，为该sstable文件附上元数据的过程。
-
 该迭代器可以是一个内存数据库的迭代器，写入情景对应着上述的第一种情况；
 该迭代器也可以是一个sstable文件的迭代器，写入情景对应着上述的第二种情况；
 sstable的元数据包括：文件编码，大小，最大key值，最小key值。
 
 
-			\begin{enumerate}
-				\item tableWriter
+
+				\ \ \ \ 1）tableWriter
 
 \begin{lstlisting}[caption=tableWriter , label=code_radds_storage_Writer]
 // Writer is a table writer.
@@ -712,9 +710,10 @@ type Writer struct {
 
 			其中blockWriter与filterWriter表示底层的两种不同的writer，blockWriter负责写入data数据的写入，而filterWriter负责写入过滤数据。
 			pendingBH记录了上一个dataBlock的索引信息，当下一个dataBlock的数据开始写入时，将该索引信息写入indexBlock中。
-				\item Append 
+			
+			\ \ \ \ 2）Append 
 				
-				一次append函数的主要逻辑如下：
+					一次append函数的主要逻辑如下：
 若本次写入为新dataBlock的第一次写入，则将上一个dataBlock的索引信息写入；将keyvalue数据写入datablock;将过滤信息写入filterBlock；
 若datablock中的数据超过预定上限，则标志着本次datablock写入结束，将内容刷新到磁盘文件中。
 
@@ -739,15 +738,15 @@ func (w *Writer) Append(key, value []byte) error {
 \end{lstlisting}
 
 
-\item dataBlock.append
+\ \ \ \ 3）dataBlock.append
 
 该函数将编码后的kv数据写入到dataBlock对应的buffer中，编码的格式如上文中提到的数据项的格式。此外，在写入的过程中，若该数据项为restart点，则会添加相应的restart point信息。
 
-\item filterBlock.append
+\ \ \ \ 4）filterBlock.append
 
 该函数将kv数据项的key值加入到过滤信息中，具体可见《布隆过滤器》。
 
-\item finishBlock
+\ \ \ \ 5）finishBlock
 
 若一个datablock中的数据超过了固定上限，则需要将相关数据写入到磁盘文件中。
 
@@ -759,7 +758,7 @@ func (w *Writer) Append(key, value []byte) error {
 将datablock的buffer中的数据写入磁盘文件；
 利用这段时间里维护的过滤信息生成过滤数据，放入filterBlock对用的buffer中。
 
-\item Close
+\ \ \ \ 6）Close
 
 当迭代器取出所有数据并完成写入后，调用tableWriter的Close函数完成最后的收尾工作：
 
@@ -769,36 +768,29 @@ func (w *Writer) Append(key, value []byte) error {
 写入indexBlock的数据；
 写入footer数据；
 至此为止，所有的数据已经被写入到一个sstable中了，由于一个sstable是作为一个memory db或者Compaction的结果原子性落地的，因此在sstable写入完成之后，将进行更为复杂的存储系统的版本更新，将在如下的文章中继续介绍。
-			\end{enumerate}
 
 
-				\item 读操作
+
+ 		\item 读操作
 				
 				读操作作为写操作的逆过程，写操作和读操作是相互转化的。
 下图为在一个sstable中查找某个数据项的流程图：
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.45\textwidth]{pdf/sstable_read_procedure.pdf}
+	\includegraphics[width=0.50\textwidth]{pdf/sstable_read_procedure.pdf}
 	\caption{sstable读过程过程图}
 	\label{sstable_read_procedure}
 \end{figure}
 
 大致流程为：
-
 首先判断“文件句柄”cache中是否有指定sstable文件的文件句柄，若存在，则直接使用cache中的句柄；
 否则打开该sstable文件，按规则读取该文件的元数据，将新打开的句柄存储至cache中；
 利用sstable中的index block进行快速的数据项位置定位，得到该数据项有可能存在的两个data block；
 利用index block中的索引信息，首先打开第一个可能的data block；
 利用filter block中的过滤信息，判断指定的数据项是否存在于该data block中，若存在，则创建一个迭代器对data block中的数据进行迭代遍历，寻找数据项；若不存在，则结束该data block的查找；
 若在第一个data block中找到了目标数据，则返回结果；若未查找成功，则打开第二个data block，重复步骤4；
-若在第二个data block中找到了目标数据，则返回结果；若未查找成功，则返回Not Found错误信息。
-
-		\begin{enumerate}
-			\item 缓存 
-			
-
-			在存储系统中，使用cache来缓存两类数据：
+若在第二个data block中找到了目标数据，则返回结果；若未查找成功，则返回Not Found错误信息。在存储系统中，使用cache来缓存两类数据：
 sstable文件句柄及其元数据；
 data block中的数据；
 因此在打开文件之前，首先判断能够在cache中命中sstable的文件句柄，避免重复读取的开销。
@@ -815,14 +807,13 @@ data block中的数据；
 			由于sstable复杂的文件组织格式，因此在打开文件后，需要读取必要的元数据，才能访问sstable中的数据。
 
 元数据读取的过程可以分为以下几个步骤：
-
 读取文件的最后48字节的利用，即Footer数据；
 读取Footer数据中维护的(1) Meta Index Block(2) Index Block两个部分的索引信息并记录，以提高整体的查询效率；
 利用meta index block的索引信息读取该部分的内容；
 遍历meta index block，查看是否存在“有用”的filter block的索引信息，若有，则记录该索引信息；
 若没有，则表示当前sstable中不存在任何过滤信息来提高查询效率；
 
-			\item 数据项的快速定位 
+\ \ \ \ 1）数据项的快速定位 
 			
 			sstable中存在多个data block，倘若依次进行“遍历”显然是不可取的。但是由于一个sstable中所有的数据项都是按序排列的，因此可以利用有序性已经index block中维护的索引信息快速定位目标数据项可能存在的data block。
 
@@ -851,17 +842,17 @@ index block是由一系列的键值对组成，每一个键值对表示一个dat
 	\label{sstable_index_block_find}
 \end{figure}
 
-	\item 过滤data
+\ \ \ \ 2）过滤data
 	
 	若sstable存有每一个data block的过滤数据，则可以利用这些过滤数据对data block中的内容进行判断，“确定”目标数据是否存在于data block中。
 
 过滤的原理为：
-
 若过滤数据显示目标数据不存在于data block中，则目标数据一定不存在于data block中；
 若过滤数据显示目标数据存在于data block中，则目标数据可能存在于data block中；
 因此利用过滤数据可以过滤掉部分data block，避免发生无谓的查找。
 
-	\item 查找datablock
+
+\ \ \ \ 3）查找datablock
 	
 	\begin{figure}[H]
 		\centering
@@ -873,10 +864,6 @@ index block是由一系列的键值对组成，每一个键值对表示一个dat
 与index block的查找类似，data block中，以16条记录为一个查找单元，若entry 1的key小于目标数据项的key，则下一条比较的是entry 17。
 因此查找的过程中，利用更大的查找单元快速定位目标数据项可能存在于哪个区间内，之后依次比较判断其是否存在与data block中。
 可以看到，sstable很多文件格式设计（例如restart point， index block，filter block，max key）在查找的过程中，都极大地提升了整体的查找效率。
-
-
-
-		\end{enumerate}
 			
 				\end{enumerate}
 				
@@ -891,7 +878,6 @@ sstable文件为compaction的结果原子性的产生，在其余时间是只读
 \item 完整性
 
 一个sstable文件，其辅助数据：
-
 索引数据和过滤数据都直接存储于同一个文件中。
 当读取是需要使用这些辅助数据时，无须额外的磁盘读取；
 当sstable文件需要删除时，无须额外的数据删除。
@@ -926,7 +912,7 @@ sstable文件为只读的，因此cache中的数据永远于sstable文件中的�
 
 			\begin{figure}[H]
 				\centering
-				\includegraphics[width=0.95\textwidth]{pdf/cache_arch.pdf}
+				\includegraphics[width=0.70\textwidth]{pdf/cache_arch.pdf}
 				\caption{sstable 缓存架构图}
 				\label{sstable_cache_arch}
 			\end{figure}
@@ -1013,14 +999,12 @@ type lruNode struct {
 
 一个LRUNode除了维护一些链表中前后节点信息以外，还存储了一个哈希表中数据项的指针，通过该指针，当某个节点由于LRU策略被驱逐时，从哈希表中“安全的”删除数据内容。
 
-LRU提供了以下几个接口：
-
-Promote
+LRU提供了以下几个接口，
+Promote：
 若一个hash表中的节点是第一次被创建，则为该节点创建一个LRUNode，并将LRUNode置于链表的头部，表示为最新的数据；
 若一个hash表中的节点之前就有相关的LRUNode存在与链表中，将该LRUNode移至链表头部；
 若因为新增加一个LRU数据，导致超出了容量上限，就需要根据策略清除部分节点。
-
-Ban
+Ban：
 将hash表节点对应的LRUNode从链表中删除，并“尝试”从哈希表中删除数据。
 由于该哈希表节点的数据可能被其它线程正在使用，因此需要查看该数据的引用计数，只有当引用计数为0时，才可以真正地从哈希表中进行删除。
 
@@ -1060,7 +1044,7 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 				\centering
 				\includegraphics[width=0.95\textwidth]{pdf/bloom1.pdf}
 				\caption{sstable 布隆过滤器示意图1}
-				\label{sstable_bloom3}
+				\label{sstable_bloom1}
 			\end{figure}
 			
 
@@ -1084,8 +1068,7 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 
 			\item 数学结论
 			
-			http://blog.csdn.net/jiaomeng/article/details/1495500该文中从数学的角度阐述了布隆过滤器的原理，以及一系列的数学结论。
-
+			布隆过滤器的实现和精密的数学理论有关。
 首先，与布隆过滤器准确率有关的参数有：
 
 哈希函数的个数k；
@@ -1101,7 +1084,7 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 			有关的代码在filter/bloom.go中。
 定义如下，bloom过滤器只是一个int数字。
 
-\begin{lstlisting}[caption=tFile , label=code_radds_storage_typedef_bloomfilter]
+\begin{lstlisting}[caption=bloomFilter , label=code_radds_storage_typedef_bloomfilter]
 	type bloomFilter int
 \end{lstlisting}
 
@@ -1133,12 +1116,9 @@ func (f bloomFilter) NewGenerator() FilterGenerator {
 \end{lstlisting}
 
 generator主要有两个函数：
+Add和Generate，在Add函数中，为了节约计算时间和存储空间，
+只是简单地将key的哈希散列值存储在一个整型数组中，并不是存储真正的元素数据。
 
-Add
-
-Generate
-
-Add函数中，只是简单地将key的哈希散列值存储在一个整型数组中
 
 \begin{lstlisting}[caption=Add , label=code_radds_storage_Add]
 func (g *bloomFilterGenerator) Add(key []byte) {
@@ -1155,39 +1135,28 @@ Generate函数中，将之前一段时间内所有添加的key信息用来构建
 
 \begin{lstlisting}[caption=Generate , label=code_radds_storage_Generate]
 func (g *bloomFilterGenerator) Generate(b Buffer) {
-	// Compute bloom filter size (in both bits and bytes)
-	// len(g.keyHashes) 可以理解为n， g.n可以理解为m/n
-	// nBits可以理解为m
-	nBits := uint32(len(g.keyHashes) * g.n)
-	// For small n, we can see a very high false positive rate.  Fix it
-	// by enforcing a minimum bloom filter length.
 	if nBits < 64 {
 		nBits = 64
 	}
 	nBytes := (nBits + 7) / 8
 	nBits = nBytes * 8
-
 	dest := b.Alloc(int(nBytes) + 1)
 	dest[nBytes] = g.k
-
 	for _, kh := range g.keyHashes {
 		// Double Hashing
 		delta := (kh >> 17) | (kh << 15) // Rotate right 17 bits
 		for j := uint8(0); j < g.k; j++ {
 			bitpos := kh % nBits
 			dest[bitpos/8] |= (1 << (bitpos % 8))
-			kh += delta
-		}
-	}
-
-	g.keyHashes = g.keyHashes[:0]
-}
+			kh += delta}}
+	g.keyHashes = g.keyHashes[:0]}
 \end{lstlisting}
 
 
-Contain函数用来判断指定的key是否存在。
+Contain函数用来判断指定的key是否存在，如果存在则返回true，不存在返回false，对应着存在关系。
+存在关系暗含着其中是否能够独立存取数据，数据的格式是通过函数的返回值确定的，也就意味着如果key存在数据格式不变，函数返回true，反之相反。
 
-\begin{lstlisting}[caption=tFile , label=code_radds_storage_tfile]
+\begin{lstlisting}[caption=Contain , label=code_radds_storage_tfile]
 func (f bloomFilter) Contains(filter, key []byte) bool {
 	nBytes := len(filter) - 1
 	if nBytes < 1 {
@@ -1287,103 +1256,8 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 					\label{sstable_major_compaction}
 				\end{figure}
 				
-				0层中浅蓝色的三个sstable文件，加上1层中的绿色的sstable文件，四个文件进行了合并，输出成两个按序组织的新的1层sstable文件进行替换。
+				0层中的三个sstable文件，加上1层中的的sstable文件，四个文件进行了合并，输出成两个按序组织的新的1层sstable文件进行替换。
 				
-
-				\begin{enumerate}
-					\item 条件
-					
-				何时会触发存储系统进行major compaction呢。总结地来说为以下三个条件：
-				当0层文件数超过预定的上限（默认为4个）；
-				当level i层文件的总大小超过(10\^i)MB；
-				当某个文件无效读取的次数过多；
-				第0层文件数据大小限制：
-				由于compaction的其中一个目的是为了提高读取的效率，因此存储系统不允许0层存在过多的文件数，一旦超过了上限值，即可进行major compaction。
-				非0层文件数据大小限制：
-				对于level i（i >= 1）的情况来说，一个读取最多只会访问一个sstable文件，因此，本身对于读取效率的影响不会太大。针对于这部分数据发生compaction的条件，从提升读取效率转变成了降低compaction的IO开销。
-				假设存储系统的合并策略只有第一条，那么会导致1层文件的个数越来越多或者总的数据量越来越大，而通常一次合并中，0层文件key的取值范围是很大的，导致每一次0层文件与1层文件进行合并时，1层文件输入文件的总数据量非常庞大。所以不仅需要控制0层文件的个数，同样，每一层文件的总大小同样需要进行控制，使得每次进行compaction时，IO开销尽量保持常量。
-				故存储系统规定，1层文件总大小上限为10MB，2层为100MB，依次类推，最高层（7层）没有限制。
-				以上两个机制能够保证随着合并的进行，数据是严格下沉的，但是仍然存在一个问题。
-				假设0层文件完成合并之后，1层文件同时达到了数据上限，同时需要进行合并。
-				更加糟糕的是，在最差的情况下，0-n层的文件同时达到了合并的条件，每一层都需要进行合并。
-				
-				其中一种优化机制是：
-				source层的文件个数只有一个；
-				source层文件与source+1层文件没有重叠；
-				source层文件与source+2层的文件重叠部分不超过10个文件；
-				当满足这几个条件时，可以将souce层的该文件直接移至source+1层。
-				
-				但是该条件非常苛刻，还是无法解决上述问题。为了避免可能存在这种“巨大”的合并开销，存储系统引入了第三个机制：”错峰合并“。
-				那么（1）如何找寻这种适合错峰合并的文件（2）以及如果判断哪个时机是适合进行错峰合并的呢？
-				对于问题（1），一个文件一次查询的开销为10ms, 若某个文件的查询次数过多，且查询在该文件中不命中, 那么这种行为就可以视为无效的查询开销，这种文件就可以进行错峰合并。
-				对于问题（2），对于一个1MB的文件，对其合并的开销为25ms。因此当一个文件1MB的文件无效查询超过25次时，便可以对其进行合并。
-				对于一个1MB的文件，其合并开销为（1）source层1MB的文件读取，（2）source+1层 10-12MB的文件读取（3）source+1层10-12MB的文件写入。
-				总结25MB的文件IO开销，除以100MB／s的文件IO速度，估计开销为25ms。
-				
-				\item 采样探测
-				
-				在每个sstable文件的元数据中，还有一个额外的字段seekLeft，默认为文件的大小除以16KB。
-				存储系统在正常的数据访问时，会顺带进行采样探测。正常的数据访问包括（1）用户直接调用Get接口（2）用户使用迭代器进行访问。
-				采样的规则：
-				记录本次访问的第一个sstable文件。若在该文件中访问命中，则不做任何处理；若在该文件中访问不命中，则对 该文件的seekLeft标志做减一操作。
-				知道某一个文件的seekLeft标志减少到0时，触发对该文件的错峰合并。
-				故以上三种机制可以保障每次进行compaction的时候，总体开销不会呈现上升趋势。
-				
-				\item 过程
-				
-				整个compaction可以简单地分为以下几步：
-				寻找合适的输入文件；
-				根据key重叠情况扩大输入文件集合；
-				多路合并；
-				积分计算。
-				
-				\begin{enumerate}
-					\item 寻找输入文件：
-				
-					不同情况下发起的合并动作，其初始的输入文件不同。
-					对于level 0层文件数过多引发的合并场景或由于level i层文件总量过大的合并场景，采用轮转的方法选择起始输入文件，记录了上一次该层合并的文件的最大key，下一次则选择在此key之后的首个文件。
-					对于错峰合并，起始输入文件则为该查询次数过多的文件。
-					
-					\item 扩大输入文件集合
-					
-					该过程如下：
-					
-					红星标注的为起始输入文件；
-					在level i层中，查找与起始输入文件有key重叠的文件，如图中红线所标注，最终构成level i层的输入文件；
-					利用level i层的输入文件，在level i+1层找寻有key重叠的文件，结果为绿线标注的文件，构成level i，i+1层的输入文件；
-					最后利用两层的输入文件，在不扩大level i+1输入文件的前提下，查找level i层的有key重叠的文件，结果为蓝线标准的文件，构成最终的输入文件；
-					
-
-					\begin{figure}[H]
-						\centering
-						\includegraphics[width=0.95\textwidth]{pdf/compaction_expand.pdf}
-						\caption{sstable 归并扩展图}
-						\label{sstable_compaction_expand}
-					\end{figure}
-					\item 多路合并：
-					
-					多路合并的过程比较简单，即将level i层的文件，与level i+1层的文件中的数据项，按序整理之后，输出到level i+1层的若干个新文件中，即合并完成。
-					
-
-					\begin{figure}[H]
-						\centering
-						\includegraphics[width=0.95\textwidth]{pdf/table_merge.pdf}
-						\caption{sstable 表合并图}
-						\label{sstable_table_merge}
-					\end{figure}
-					注意在整理的过程中，需要将冗余的数据进行清理，即同一条数据的多个版本信息，只保留最新的那一份。
-	但是要注意，某些仍然在使用的旧版本的数据，在此时不能立刻删除，而得等到用户使用结束，释放句柄后，根据引用计数来进行清除。
-	
-	\item 积分计算
-	
-	每一次compaction都会消除若干source层的旧文件，新增source+1层的新文件，因此触发进行合并的条件状态可能也发生了变化。故在存储系统中，使用了计分牌来维护每一层文件的文件个数及数据总量信息，来挑选出下一个需要进行合并的层数。
-	计分的规则很简单：
-	对于0层文件，该层的分数为文件总数／4；
-	对于非0层文件，该层的分数为文件数据总量／数据总量上限；
-	将得分最高的层数记录，若该得分超过1，则为下一次进行合并的层数。
-				\end{enumerate}
-				
-				\end{enumerate}
 				
 				
 				
@@ -1415,41 +1289,28 @@ manifest文件专用于记录版本信息。存储系统采用了增量式的存
 （2）删除了哪些sstable文件（由于compaction导致）
 （3）最新的journal日志文件标号等
 借助这个Manifest文件，存储系统启动时，可以根据一个初始的版本状态，不断地应用这些版本改动，使得系统的版本信息恢复到最近一次使用的状态。
-
-一个Manifest文件的格式示意图如下所示：
-			
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=0.95\textwidth]{pdf/manifest.pdf}
-	\caption{元数据图}
-	\label{manifest}
-\end{figure}
-			
-
 一个Manifest内部包含若干条Session Record，其中第一条Session Record记载了当时存储系统的全量版本信息，其余若干条Session Record仅记录每次更迭的变化情况。
 因此，每个manifest文件的第一条Session Record都是一个记录点，记载了全量的版本信息，可以作为一个初始的状态进行版本恢复。
-一个Session Record可能包含以下字段：
-
-Comparer的名称；
+一个Session Record可能包含以下字段：Comparer的名称；
 最新的journal文件编号；
 下一个可以使用的文件编号；
 数据库已经持久化数据项中最大的sequence number；
 新增的文件信息；
 删除的文件信息；
 compaction记录信息。
-		\item Commit
 
-每当（1）完成一次major compaction整理内部数据或者（2）通过minor compaction或者重启阶段的日志重放新生成一个0层文件，都会触发存储系统进行一个版本升级。、
-一次版本升级的过程如下：
-		
+
+一个Manifest文件的格式示意图如下所示：
+			
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{pdf/version_update.pdf}
-	\caption{版本更新示意图}
-	\label{sstable_version_update}
+	\includegraphics[width=0.70\textwidth]{pdf/manifest.pdf}
+	\caption{元数据图}
+	\label{manifest}
 \end{figure}
 
-
+		\item Commit
+		
 新建一个session record，记录状态变更信息；
 若本次版本更新的原因是由于minor compaction或者日志replay导致新生成了一个sstable文件，则在session record中记录新增的文件信息、最新的journal编号、数据库sequence number以及下一个可用的文件编号；
 若本次版本更新的原因是由于major compaction，则在session record中记录新增、删除的文件信息、下一个可用的文件编号即可；
@@ -1462,7 +1323,15 @@ compaction记录信息。
 注意，对于存储系统来说，增减某些sstable文件需要作为一个原子性操作，状态变更前后需要保持数据库的一致性。
 在整个过程中，原子性体现在：整个操作的完成标志为manifest文件中完整的写入了一条session record，在此之前，即便某些文件写入失败导致进程退出，数据库重启启动时，仍然能够恢复到崩溃之前正确的状态，而将这些无用的sstable文件删除，重新进行compaction动作。
 一致性体现在：存储系统状态变更的操作都是以version更新为标记，而version更新是整个流程的最后一步，因此数据库必然都是从一个一致性的状态变更到另外一个一致性的状态。
-
+每当（1）完成一次major compaction整理内部数据或者（2）通过minor compaction或者重启阶段的日志重放新生成一个0层文件，都会触发存储系统进行一个版本升级。、
+一次版本升级的过程如下：
+		
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.95\textwidth]{pdf/version_update.pdf}
+	\caption{版本更新示意图}
+	\label{sstable_version_update}
+\end{figure}
 
 		\item Recover
 
@@ -1470,13 +1339,12 @@ compaction记录信息。
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{pdf/version_recover.pdf}
+	\includegraphics[width=0.68\textwidth]{pdf/version_recover.pdf}
 	\caption{版本复原示意图}
 	\label{sstable_version_recover}
 \end{figure}
 
 过程如下：
-
 利用Current文件读取最近使用的manifest文件；
 创建一个空的version，并利用manifest文件中的session record依次作apply操作，还原出一个最新的version，注意manifest的第一条session record是一个version的快照，后续的session record记录的都是增量的变化；
 将非current文件指向的其它过期的manifest文件删除；
@@ -1638,23 +1506,21 @@ compaction生成的文件只有等合并完成后才会写入数据库元数据�
 			\begin{enumerate}
 				\item run (main thread)
 				基于对等状态的不同行为
-				
-				\begin{enumerate}
 					
 					\item follower
 					\begin{enumerate}
 					\item processRPC (from rpcCh)
-						\begin{enumerate}
+
 						
-							\item AppendEntries
+					\item AppendEntries
 							
-							\item RequestVote
+					\item RequestVote
 							
-							\item InstallSnapshot
+					\item InstallSnapshot
 							
-							\item TimeoutNow
+					\item TimeoutNow
 						
-						\end{enumerate}
+
 					\item liveBootstrap (from bootstrapCh)
 					\item periodic heartbeatTimer (HeartbeatTimeout)
 					\end{enumerate}
@@ -1695,7 +1561,7 @@ compaction生成的文件只有等合并完成后才会写入数据库元数据�
 						\item checkLease (periodically LeaseTimeout) 
 						
 					\end{enumerate}
-				\end{enumerate}
+
 				
 				
 				\item runFSM 

@@ -2,7 +2,7 @@
 
 	\subsection{存储系统架构设计}
 
-	Radds存储系统总体架构组成如下所示
+	如图3.1所示为Radds存储系统总体架构组成。
 	
 	\begin{figure}[H]
 		\centering
@@ -65,6 +65,7 @@
 
 		\subsubsection{存储引擎设计概述}
 
+		图3.2是存储引擎的架构设计图。
 		\begin{figure}[H]
 			\centering
 			\includegraphics[width=0.80\textwidth]{pdf/leveldb_arch.pdf}
@@ -72,7 +73,7 @@
 			\label{mobile_overall_design}
 		\end{figure}
 
-		上图是存储引擎的架构设计图，
+		
 		本文要实现具有写性能的存储引擎，则必须实现一个LSM树(Log Structured-Merge Tree)。LSM树的核心思想就是放弃部分读的性能，换取最大的写入能力。
 		LSM树写性能极高的原理，就是尽量减少随机写的次数。对于每次写入操作，并不是直接将最新的数据驻留在磁盘中，而是将其拆分成
 		{一次日志文件的顺序写}和{一次内存中的数据插入}存储架构正是实践了这种思想，
@@ -161,7 +162,7 @@
 		每条记录包括（1）新增哪些sst文件（2）删除哪些sst文件（3）当前compaction的下标
 		（4）日志文件编号（5）操作seqNumber等信息。通过这些信息，存储系统便可以在启动时，
 		基于一个空的version，不断apply这些记录，最终得到一个上次运行结束时的版本信息。
-
+		如图3.3是版本信息记录的数据结构图。
 		\begin{figure}[H]
 			\centering
 			\includegraphics[width=0.50\textwidth]{pdf/manifest.pdf}

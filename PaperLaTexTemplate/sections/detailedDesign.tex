@@ -7,7 +7,7 @@
 	  \subsubsection{日志系统的实现}
     
 	  为了防止写入内存的数据库因为进程异常、操作系统掉电等情况发生丢失，
-	  存储系统在写内存之前会将本次写操作的内容写入日志文件中。
+	  存储系统在写内存之前会将本次写操作的内容写入日志文件中。图4.1是日志系统的架构图。
 
    \begin{figure}[H]
 	   \centering
@@ -29,6 +29,7 @@
    \begin{enumerate}
    \item 日志结构
 
+   图4.2是日志文件存储结构图。
    \begin{figure}[H]
 	   \centering
 	   \includegraphics[width=0.80\textwidth]{pdf/journal.pdf}
@@ -52,10 +53,10 @@
    
    \item 日志内容
    
-   日志的内容为写入的batch编码后的信息，具体的格式为：
+   日志的内容为写入的batch编码后的信息，图4.3为日志文件的具体格式。
    \begin{figure}[H]
 	   \centering
-	   \includegraphics[width=0.50\textwidth]{pdf/journal_content.pdf}
+	   \includegraphics[width=0.95\textwidth]{pdf/journal_content.pdf}
 	   \caption{日志文件格式图}
 	   \label{journal_content}
    \end{figure}
@@ -64,6 +65,7 @@
    其中Header中有当前db的sequence number和本次日志记录中所包含的put/del操作的个数，紧接着写入所有batch编码后的内容。
    \item 日志文件写 
    
+   图4.4是日志文件写的整个流程图。
    \begin{figure}[h]
    	\centering
    	\includegraphics[width=0.50\textwidth]{pdf/journal_write.pdf}
@@ -91,10 +93,10 @@
    且用户要求严格的正确性，则返回错误，否则丢弃整个chunk的数据。
 	循环调用singleReader的read函数，直至读取到一个类型为Last的chunk，
    表示整条日志记录都读取完毕，返回。
-
+   图4.5位日志文件读流程图。
    \begin{figure}[H]
 	   \centering
-	   \includegraphics[width=0.50\textwidth]{pdf/journal_read.pdf}
+	   \includegraphics[width=0.40\textwidth]{pdf/journal_read.pdf}
 	   \caption{日志文件读流程图}
 	   \label{journal_read}
    \end{figure}
@@ -109,7 +111,7 @@
 		\item 写入数据的整体流程
 			
 		先来分析一下存储系统整个写入的流程，底层数据结构的支持以及为何能够优化本文的写入性能。
-		
+		图4.6是存储系统的写数据流程的逻辑结构，并不代表实际存储。
 		\begin{figure}[H]
 			\centering
 			\includegraphics[width=0.95\textwidth]{pdf/write_op.pdf}
@@ -138,7 +140,7 @@
 		
 		无论是Put/Del操作，还是批量操作，
 		底层都会为这些操作创建一个batch实例作为一个数据库操作的最小执行单元。
-		因此首先介绍一下batch的组织结构。
+		图4.7是batch的组织结构。
 
 		\begin{figure}[H]
 			\centering
@@ -160,7 +162,7 @@
 		\item key值编码
 		
 		当数据项从batch中写入到内存数据库中时，需要将一个key值的转换，即在存储系统内部，
-		所有数据项的key是经过特殊编码的，这种格式称为internalKey。
+		所有数据项的key是经过特殊编码的，这种格式称为internalKey，图4.8是内部键的具体编码格式。
 
 		\begin{figure}[H]
 			\centering
@@ -210,9 +212,10 @@
 		
 		\ \ \ \ 4）若未被合并，则继续等待写锁或者等待被合并。
 
+		图4.9是写合并的流程图。
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.50\textwidth]{pdf/write_merge.pdf}
+			\includegraphics[width=0.53\textwidth]{pdf/write_merge.pdf}
 			\caption{写合并的流程}
 			\label{write_merge}
 		\end{figure}
@@ -258,6 +261,7 @@
 		并且基于该快照读取key为“name”的数据时，即便此刻用户将"name"的值修改为"dog"，
 		再删除，用户读取到的内容仍然是“cat”。
 
+		图4.10是快照数据示例图。
 		\begin{figure}[H]
 			\centering
 			\includegraphics[width=0.45\textwidth]{pdf/snapshot.pdf}
@@ -273,6 +277,7 @@
 
 		\item 读数据流程
 		
+		图4.11是读数据的整个流程。
 		\begin{figure}[H]
 			\centering
 			\includegraphics[width=0.95\textwidth]{pdf/readop.pdf}
@@ -374,6 +379,7 @@
 		在每一层中，以链表插入的方式，将该节点插入到每一层的链接中。
 		链表插入指：将当前节点的Next值置为前任节点的Next值，将前任节点的Next值替换为当前节点。
 
+		代码清单4.1是描述跳表随机高度的函数。
 		\begin{lstlisting}[caption=skiplistRandHeight , label=code_radds_storage_skiplist_randHeight]
 func (p *DB) randHeight() (h int) {
 	const branching = 4
@@ -424,7 +430,7 @@ func (p *DB) randHeight() (h int) {
 			由于在存储系统中可能会有多条相同key的数据项同时存储在数据库中，
 			因此需要有一个序列号来标识这些数据项的新旧情况。序列号最大的数据项为最新值。
 			类型：标志本条数据项的类型，为更新还是删除。
-
+			图4.12是内存数据库内部键图。
 			\begin{figure}[H]
 				\centering
 				\includegraphics[width=0.55\textwidth]{pdf/internalkey}
@@ -453,8 +459,8 @@ func (p *DB) randHeight() (h int) {
 			第三个字节用来存储本节点value值长度。
 			第四个字节用来存储本节点的层高。
 			第五个字节开始，用来存储每一层对应的下一个节点的索引值。
-			如下代码描述了数据的具体组织形式。
-						\begin{lstlisting}{caption=storage_db, label=code_radds_storage_db}
+			代码清单4.2是数据的具体组织形式。
+		\begin{lstlisting}[caption=storageDB , label=code_radds_storage_db]
 type DB struct {
 	cmp comparer.BasicComparer
 	rnd *rand.Rand
@@ -467,10 +473,12 @@ type DB struct {
 	kvSize    int
 }
 		\end{lstlisting}
+
 		\item 基础操作
 		
 		Put、Get、Delete、Iterator等操作均依赖于底层的跳表的基本操作实现，不再赘述。
-		\end{enumerate}
+		
+	\end{enumerate}
 
 		\subsubsection{持久化数据存储的实现}
 
@@ -503,7 +511,7 @@ type DB struct {
 					压缩类型说明了Block中存储的数据是否进行了数据压缩，
 					若是，采用了哪种算法进行压缩。存储系统中默认采用Snappy算法进行压缩。
 					CRC校验码是循环冗余校验校验码，校验范围包括数据以及压缩类型。
-					
+					图4.13是sstable的物理结构图。
 					\begin{figure}[H]
 						\centering
 						\includegraphics[width=0.80\textwidth]{pdf/sstable_physic.pdf}
@@ -521,6 +529,7 @@ type DB struct {
 	footer: 用来存储meta index block及index block的索引信息。
 	每个区块都会有自己的压缩信息以及CRC校验码信息，字节的校验码会存在于自己的区块，不会影响到其他的区块，设计的
 	目的去就是为了避免冗余数据的写入会导致到规模的放大以至于存储过多无用的数据，自己单独校验的成本要比混合校验成本低。
+	图4.13是sstable的逻辑结构图。
 	\begin{figure}[H]
 		\centering
 		\includegraphics[width=0.80\textwidth]{pdf/sstable_logic.pdf}
@@ -534,7 +543,7 @@ type DB struct {
 	
 					data block中存储的数据是存储系统中的keyvalue键值对。
 					其中一个data block中的数据部分（不包括压缩类型、CRC校验码）按逻辑又以下图进行划分：
-					
+					图4.15是sstable的数据块分布图。
 					\begin{figure}[H]
 						\centering
 						\includegraphics[width=0.35\textwidth]{pdf/datablock.pdf}
@@ -560,8 +569,7 @@ type DB struct {
 					底层数据详细查找的理念，降低查找的复杂度。
 	
 					
-					每个数据项格式如下图所示：
-	
+					图4.16是每个数据项格式条目图。
 					\begin{figure}[H]
 						\centering
 						\includegraphics[width=0.95\textwidth]{pdf/entry_format.pdf}
@@ -593,6 +601,7 @@ type DB struct {
 	filter block存储的是data block数据的一些过滤信息。
 	这些过滤数据一般指代布隆过滤器的数据，用于加快查询的速度。
 	
+	图4.17是sstable 过滤块格式图。
 	\begin{figure}[H]
 		\centering
 		\includegraphics[width=0.35\textwidth]{pdf/filterblock_format.pdf}
@@ -630,9 +639,10 @@ data block i 中最大的key值；
 该data block起始地址在sstable中的偏移量；
 该data block的大小。
 
+图4.18是sstable序号块格式图。
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.64\textwidth]{pdf/indexblock_format.pdf}
+	\includegraphics[width=0.40\textwidth]{pdf/indexblock_format.pdf}
 	\caption{sstable 序号块格式图}
 	\label{sstable_indexblock_format}
 \end{figure}
@@ -642,7 +652,7 @@ data block i 中最大的key值；
 
 \item footer结构
 footer大小固定，为48字节，用来存储meta index block与index block在sstable中的索引信息，
-另外尾部还会存储一个magic word。
+另外尾部还会存储一个magic word。图4.19是sstable底部格式图。
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.45\textwidth]{pdf/footer_format.pdf}
@@ -666,15 +676,13 @@ footer大小固定，为48字节，用来存储meta index block与index block在
 memory db将内容持久化到磁盘文件中时，会创建一个sstable进行写入；
 存储系统后台进行文件compaction时，会将若干个sstable文件的内容重新组织，输出到若干个新的sstable文件中；
 对sstable进行写操作的数据结构为tWriter，具体定义如下：
-
+代码清单4.3是tWriter的描述代码。
 \begin{lstlisting}[caption=tWriter , label=code_radds_storage_tWriter]
 type tWriter struct {
 	t *tOps
-	
 	fd storage.FileDesc // 文件描述符
 	w  storage.Writer   // 文件系统writer
 	tw *table.Writer
-	
 	first, last []byte
 }
 \end{lstlisting}
@@ -690,8 +698,8 @@ sstable的元数据包括：文件编码，大小，最大key值，最小key值�
 
 
 
-				\ \ \ \ 1）tableWriter
-
+				\ \ \ \ 1）
+代码清单4.4是tableWriter的结构描述。
 \begin{lstlisting}[caption=tableWriter , label=code_radds_storage_Writer]
 // Writer is a table writer.
 type Writer struct {
@@ -716,7 +724,7 @@ type Writer struct {
 					一次append函数的主要逻辑如下：
 若本次写入为新dataBlock的第一次写入，则将上一个dataBlock的索引信息写入；将keyvalue数据写入datablock;将过滤信息写入filterBlock；
 若datablock中的数据超过预定上限，则标志着本次datablock写入结束，将内容刷新到磁盘文件中。
-
+代码清单4.5是数据添加的设计代码。
 \begin{lstlisting}[caption=Append , label=code_radds_storage_Append]
 func (w *Writer) Append(key, value []byte) error {
 	w.flushPendingBH(key)
@@ -724,7 +732,6 @@ func (w *Writer) Append(key, value []byte) error {
 	w.dataBlock.append(key, value)
 	// Add key to the filter block.
 	w.filterBlock.add(key)
-	
 	// Finish the data block if block size target reached.
 	if w.dataBlock.bytesLen() >= w.blockSize {
 		if err := w.finishBlock(); err != nil {
@@ -774,11 +781,10 @@ func (w *Writer) Append(key, value []byte) error {
  		\item 读操作
 				
 				读操作作为写操作的逆过程，写操作和读操作是相互转化的。
-下图为在一个sstable中查找某个数据项的流程图：
-
+图4.20为在一个sstable中查找某个数据项的流程图。
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.50\textwidth]{pdf/sstable_read_procedure.pdf}
+	\includegraphics[width=0.38\textwidth]{pdf/sstable_read_procedure.pdf}
 	\caption{sstable读过程过程图}
 	\label{sstable_read_procedure}
 \end{figure}
@@ -797,7 +803,7 @@ data block中的数据；
 
 			\item 元数据读取 
 			
-
+			图4.21为sstable元数据结构图。
 			\begin{figure}[H]
 				\centering
 				\includegraphics[width=0.95\textwidth]{pdf/sstable_metadata.pdf}
@@ -816,9 +822,7 @@ data block中的数据；
 \ \ \ \ 1）数据项的快速定位 
 			
 			sstable中存在多个data block，倘若依次进行“遍历”显然是不可取的。但是由于一个sstable中所有的数据项都是按序排列的，因此可以利用有序性已经index block中维护的索引信息快速定位目标数据项可能存在的data block。
-
-一个index block的文件结构示意图如下：
-
+图4.22为index block的文件结构示意图如下。
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/indexblock.pdf}
@@ -834,7 +838,7 @@ index block是由一系列的键值对组成，每一个键值对表示一个dat
 值得注意的是，与data block一样，index block中的索引信息同样也进行了key值截取，即第二个索引信息的key并不是存储完整的key，而是存储与前一个索引信息的key不共享的部分，区别在于data block中这种范围的划分粒度为16，而index block中为2 。
 也就是说，index block连续两条索引信息会被作为一个最小的“比较单元“，在查找的过程中，若第一个索引信息的key小于目标数据项的key，则紧接着会比较第三条索引信息的key。
 这就导致最终目标数据项的范围区间为某”两个“data block。
-
+图4.23sstable序号块查找。
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/index_block_find.pdf}
@@ -854,17 +858,17 @@ index block是由一系列的键值对组成，每一个键值对表示一个dat
 
 \ \ \ \ 3）查找datablock
 	
+在data block中查找目标数据项是一个简单的迭代遍历过程。虽然data block中所有数据项都是按序排序的，但是作者并没有采用“二分查找”来提高查找的效率，而是使用了更大的查找单元进行快速定位。
+与index block的查找类似，data block中，以16条记录为一个查找单元，若entry 1的key小于目标数据项的key，则下一条比较的是entry 17。
+因此查找的过程中，利用更大的查找单元快速定位目标数据项可能存在于哪个区间内，之后依次比较判断其是否存在与data block中。
+可以看到，sstable很多文件格式设计（例如restart point， index block，filter block，max key）在查找的过程中，都极大地提升了整体的查找效率。
+图4.23是sstable数据格式图。
 	\begin{figure}[H]
 		\centering
 		\includegraphics[width=0.95\textwidth]{pdf/datablock_format.pdf}
 		\caption{sstable 数据块结构格式图}
 		\label{sstable_datablock_format}
 	\end{figure}
-	在data block中查找目标数据项是一个简单的迭代遍历过程。虽然data block中所有数据项都是按序排序的，但是作者并没有采用“二分查找”来提高查找的效率，而是使用了更大的查找单元进行快速定位。
-与index block的查找类似，data block中，以16条记录为一个查找单元，若entry 1的key小于目标数据项的key，则下一条比较的是entry 17。
-因此查找的过程中，利用更大的查找单元快速定位目标数据项可能存在于哪个区间内，之后依次比较判断其是否存在与data block中。
-可以看到，sstable很多文件格式设计（例如restart point， index block，filter block，max key）在查找的过程中，都极大地提升了整体的查找效率。
-			
 				\end{enumerate}
 				
 
@@ -909,7 +913,7 @@ sstable文件为只读的，因此cache中的数据永远于sstable文件中的�
 			存储系统中使用的cache是一种LRUcache，其结构由两部分内容组成
 			Hash table：用来存储数据；
 			LRU：用来维护数据项的新旧信息。
-
+			图4.25是sstable缓存架构图。
 			\begin{figure}[H]
 				\centering
 				\includegraphics[width=0.70\textwidth]{pdf/cache_arch.pdf}
@@ -933,10 +937,11 @@ LRU中则根据Least Recently Used原则进行数据新旧信息的维护，当�
 			\begin{enumerate}
 				\item 散列 
 				
+				图4.25是sstale缓存查找图。
 				\begin{figure}[H]
 					\centering
 					\includegraphics[width=0.95\textwidth]{pdf/cache_select.pdf}
-					\caption{sstable缓存查找图}
+					\caption{缓存查找图}
 					\label{sstable_cache_select}
 				\end{figure}
 				该哈希表的散列与普通的哈希表一致，都是借助散列函数，将用户需要查找、更改的数据散列到某一个哈希桶中，并在哈希桶中进行操作。
@@ -946,10 +951,11 @@ LRU中则根据Least Recently Used原则进行数据新旧信息的维护，当�
 				
 				\item 扩大
 				
+				图4.27是缓存扩展图。
 				\begin{figure}[H]
 					\centering
 					\includegraphics[width=0.55\textwidth]{pdf/cache_expend.pdf}
-					\caption{sstable 缓存扩展图}
+					\caption{缓存扩展图}
 					\label{sstable_cache_expand}
 				\end{figure}
 				当cache中维护的数据量太大时，会发生哈希表扩张的情况。以下两种情况是为“cache中维护的数据量过大”：
@@ -986,7 +992,7 @@ LRU中则根据Least Recently Used原则进行数据新旧信息的维护，当�
 		
 		除了利用哈希表来存储数据以外，存储系统还利用LRU来管理数据。
 存储系统中，LRU利用一个双向循环链表来实现。每一个链表项称之为LRUNode。
-
+代码清单4.6是lruNode结构。
 \begin{lstlisting}[caption=lruNode , label=code_radds_storage_lruNode]
 type lruNode struct {
 	n   *Node // customized node
@@ -1038,8 +1044,7 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 		\begin{enumerate}
 			\item 结构 
 			
-			bloom过滤器底层是一个位数组，初始时每一位都是0 
-
+			bloom过滤器底层是一个位数组，初始时每一位都是0，图4.28是布隆过滤器示意图1。
 			\begin{figure}[H]
 				\centering
 				\includegraphics[width=0.95\textwidth]{pdf/bloom1.pdf}
@@ -1049,7 +1054,7 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 			
 
 当插入值x后，分别利用k个哈希函数（图中为3）利用x的值进行散列，并将散列得到的值与bloom过滤器的容量进行取余，将取余结果所代表的那一位值置为1。
-
+图4.29是布隆过滤器示意图2.
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/bloom2.pdf}
@@ -1058,7 +1063,7 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 \end{figure}
 
 一次查找过程与一次插入过程类似，同样利用k个哈希函数对所需要查找的值进行散列，只有散列得到的每一个位的值均为1，才表示该值“有可能”真正存在；反之若有任意一位的值为0，则表示该值一定不存在。例如y1一定不存在；而y2可能存在。
-
+图4.30是布隆过滤器示意图3。
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.95\textwidth]{pdf/bloom3.pdf}
@@ -1089,7 +1094,7 @@ bcache：来缓存被读过的sstable中dataBlock的数据（默认上限为8MB�
 \end{lstlisting}
 
 创建一个布隆过滤器时，只需要指定为每个key分配的位数即可，如结论2所示，只要该值（m/n）大于1.44即可，一般可以取10。
-
+代码清单4.7是布隆过滤器重定义。
 \begin{lstlisting}[caption=NewBloomFilter , label=code_radds_storage_newbloomfilter]
 func NewBloomFilter(bitsPerKey int) Filter {
 	return bloomFilter(bitsPerKey)
@@ -1098,7 +1103,7 @@ func NewBloomFilter(bitsPerKey int) Filter {
 
 创建一个generator, 这一步中需要指定哈希函数的个数k，可以看到k = f * ln2，而f = m/n，即数学结论1。
 返回的generator中可以添加新的key信息，调用generate函数时，将所有的key构建成一个位数组写在指定的位置。
-
+代码清单4.8是布隆过滤器重生成代码。
 \begin{lstlisting}[caption=NewGenerator , label=code_radds_storage_NewGenerator]
 func (f bloomFilter) NewGenerator() FilterGenerator {
 	// Round down to reduce probing cost a little bit.
@@ -1110,16 +1115,13 @@ func (f bloomFilter) NewGenerator() FilterGenerator {
 	}
 	return &bloomFilterGenerator{
 		n: int(f),
-		k: k,
-	}
-}
+		k: k,}}
 \end{lstlisting}
 
 generator主要有两个函数：
 Add和Generate，在Add函数中，为了节约计算时间和存储空间，
 只是简单地将key的哈希散列值存储在一个整型数组中，并不是存储真正的元素数据。
-
-
+代码清单4.10是添加代码。
 \begin{lstlisting}[caption=Add , label=code_radds_storage_Add]
 func (g *bloomFilterGenerator) Add(key []byte) {
 	// Use double-hashing to generate a sequence of hash values.
@@ -1132,7 +1134,7 @@ func (g *bloomFilterGenerator) Add(key []byte) {
 Generate函数中，将之前一段时间内所有添加的key信息用来构建一个位数组，该位数组中包含了所有key的存在信息。
 位数组的大小为用户指定的每个key所分配的位数 乘以 key的个数。
 位数组的最末尾用来存储k的大小。
-
+代码清单4.11是生成代码。
 \begin{lstlisting}[caption=Generate , label=code_radds_storage_Generate]
 func (g *bloomFilterGenerator) Generate(b Buffer) {
 	if nBits < 64 {
@@ -1154,8 +1156,8 @@ func (g *bloomFilterGenerator) Generate(b Buffer) {
 
 
 Contain函数用来判断指定的key是否存在，如果存在则返回true，不存在返回false，对应着存在关系。
-存在关系暗含着其中是否能够独立存取数据，数据的格式是通过函数的返回值确定的，也就意味着如果key存在数据格式不变，函数返回true，反之相反。
-
+存在关系暗含着其中是否能够独立存取数据，
+代码清单4.12是判断是否contain的代码。
 \begin{lstlisting}[caption=Contain , label=code_radds_storage_tfile]
 func (f bloomFilter) Contains(filter, key []byte) bool {
 	nBytes := len(filter) - 1
@@ -1234,7 +1236,7 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 				\item Minor Compaction
 				
 				一次minor compaction非常简单，其本质就是将一个内存数据库中的所有数据持久化到一个磁盘文件中。
-				
+				图4.31是sstable结构的镜像归并图。
 				\begin{figure}[H]
 					\centering
 					\includegraphics[width=0.95\textwidth]{pdf/minor_compaction.pdf}
@@ -1248,10 +1250,10 @@ func (f bloomFilter) Contains(filter, key []byte) bool {
 				\item Major Compaction
 				
 				相比于minor compaction，major compaction就会复杂地多。首先看一下一次major compaction的示意图。
-				
+				图4.32是sstable的结构主归并图。
 				\begin{figure}[H]
 					\centering
-					\includegraphics[width=0.95\textwidth]{pdf/major_compaction.pdf}
+					\includegraphics[width=0.65\textwidth]{pdf/major_compaction.pdf}
 					\caption{sstable 结构主归并}
 					\label{sstable_major_compaction}
 				\end{figure}
@@ -1298,13 +1300,10 @@ manifest文件专用于记录版本信息。存储系统采用了增量式的存
 新增的文件信息；
 删除的文件信息；
 compaction记录信息。
-
-
-一个Manifest文件的格式示意图如下所示：
-			
+图4.4.33是Manifest文件的格式示意图。
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.70\textwidth]{pdf/manifest.pdf}
+	\includegraphics[width=0.50\textwidth]{pdf/manifest.pdf}
 	\caption{元数据图}
 	\label{manifest}
 \end{figure}
@@ -1324,7 +1323,7 @@ compaction记录信息。
 在整个过程中，原子性体现在：整个操作的完成标志为manifest文件中完整的写入了一条session record，在此之前，即便某些文件写入失败导致进程退出，数据库重启启动时，仍然能够恢复到崩溃之前正确的状态，而将这些无用的sstable文件删除，重新进行compaction动作。
 一致性体现在：存储系统状态变更的操作都是以version更新为标记，而version更新是整个流程的最后一步，因此数据库必然都是从一个一致性的状态变更到另外一个一致性的状态。
 每当（1）完成一次major compaction整理内部数据或者（2）通过minor compaction或者重启阶段的日志重放新生成一个0层文件，都会触发存储系统进行一个版本升级。、
-一次版本升级的过程如下：
+图4.34是一次版本升级的过程。
 		
 \begin{figure}[H]
 	\centering
@@ -1336,7 +1335,7 @@ compaction记录信息。
 		\item Recover
 
 数据库每次启动时，都会有一个recover的过程，简要地来说，就是利用Manifest信息重新构建一个最新的version。
-
+图4.35是版本复原图。
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.68\textwidth]{pdf/version_recover.pdf}
